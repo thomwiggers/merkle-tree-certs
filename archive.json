@@ -1,0 +1,893 @@
+{
+  "magic": "E!vIA5L86J2I",
+  "timestamp": "2023-04-13T01:26:31.670367+00:00",
+  "repo": "davidben/merkle-tree-certs",
+  "labels": [
+    {
+      "name": "bug",
+      "description": "Something isn't working",
+      "color": "d73a4a"
+    },
+    {
+      "name": "documentation",
+      "description": "Improvements or additions to documentation",
+      "color": "0075ca"
+    },
+    {
+      "name": "duplicate",
+      "description": "This issue or pull request already exists",
+      "color": "cfd3d7"
+    },
+    {
+      "name": "enhancement",
+      "description": "New feature or request",
+      "color": "a2eeef"
+    },
+    {
+      "name": "good first issue",
+      "description": "Good for newcomers",
+      "color": "7057ff"
+    },
+    {
+      "name": "help wanted",
+      "description": "Extra attention is needed",
+      "color": "008672"
+    },
+    {
+      "name": "invalid",
+      "description": "This doesn't seem right",
+      "color": "e4e669"
+    },
+    {
+      "name": "question",
+      "description": "Further information is requested",
+      "color": "d876e3"
+    },
+    {
+      "name": "wontfix",
+      "description": "This will not be worked on",
+      "color": "ffffff"
+    }
+  ],
+  "issues": [
+    {
+      "number": 1,
+      "id": "I_kwDOJIBkVc5gi33k",
+      "title": "Time math is ambiguously-specified",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/1",
+      "state": "CLOSED",
+      "author": "davidben",
+      "authorAssociation": "OWNER",
+      "assignees": [],
+      "labels": [],
+      "body": "Leap seconds, UTC, TAI, etc., are all the worst. While we never actually write the timestamps on the wire, it is important that everyone agree, for a given batch number, what times they refer to.\r\n\r\nThe intent was that you just do math in POSIX time, since that's what every programming language gives you. But if there's ever another leap second, it gets a little tricky. It might be that we have to literally cite POSIX here? Something like: all of these are just measured in seconds, do the math in seconds to get a POSIX timestamp, convert the current time to POSIX time, and then compare in that space?\r\nhttps://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap04.html#tag_04_16\r\n\r\nOtherwise you have to answer ridiculous questions like what happens at one of the POSIX timestamps that correspond to multiple times of day.\r\n\r\nNot that anything at this granularity matters _at all_ for a PKI.",
+      "createdAt": "2023-03-10T23:32:00Z",
+      "updatedAt": "2023-03-18T01:18:44Z",
+      "closedAt": "2023-03-18T01:18:44Z",
+      "comments": [
+        {
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "body": "Notes to self for specifying this:\r\n* C++ says that `std::chrono::system_clock` says \"time since 1970-01-01 00:00:00 UTC excluding leap seconds\"\r\n* POSIX has a DOI, so generating the citation is pretty easy.\r\n",
+          "createdAt": "2023-03-15T22:15:57Z",
+          "updatedAt": "2023-03-15T22:15:57Z"
+        }
+      ]
+    },
+    {
+      "number": 2,
+      "id": "I_kwDOJIBkVc5gql1x",
+      "title": "How long must long-expired batches be served",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/2",
+      "state": "OPEN",
+      "author": "davidben",
+      "authorAssociation": "OWNER",
+      "assignees": [],
+      "labels": [],
+      "body": "As currently written, neither CAs nor the transparency service are allowed to stop serving long-outdated batches. Should we relax this? Some nuisances:\r\n\r\n* Storage windows should be much larger than validity windows, to allow for RP clock skew\r\n* If the CA's storage window is smaller than the TS's storage window, it is possible that a transparency service will fail to log something if it's really, _really_ behind. That said, it would need to be behind by more than the CA's storage window and if that's, say, a year, that's probably fine.\r\n* A bigger issue is that if the TS spins up after the CA does, it can't bootstrap itself with data before the CA's storage window (unless it pulls it from another mirror)",
+      "createdAt": "2023-03-13T15:55:05Z",
+      "updatedAt": "2023-03-19T02:40:57Z",
+      "closedAt": null,
+      "comments": [
+        {
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "body": "> Storage windows should be much larger than validity windows, to allow for RP clock skew\r\n\r\nFor the common case, where the roots are side-loaded to the RP, the transparency service can also side-load an approximate time. The latest batch you got is an estimate of the time!\r\n\r\n> if it's really, really behind\r\n\r\nIf a transparency service is that much behind, then it can't perform its main function: allowing clients to authenticate. (Transparency service is perhaps not the best name.)\r\n\r\nIf everything functions normally, I'd say that the CAs would really only need to store batches for another day or so. On the other hand, when things go wrong, it's nice to have some time to figure things out. We shouldn't go overboard here: it's harder for the CAs to serve a year's worth of batches, than three weeks.\r\n\r\nIndeed, the size of assertions is dominated by the size of the public keys. If they're all RSA-2048, we're looking at roughly 1.5GB per day. Serving 32GB for three weeks is much easier than 560GB. If they're all Dilithium3, then we're looking at 250GB for three weeks and 4.2TB for a year. See also #6 .\r\n\r\nI want to try running this as easy as possible, so at the moment I'd lean towards a storage window of 4 weeks.",
+          "createdAt": "2023-03-18T10:05:08Z",
+          "updatedAt": "2023-03-18T10:36:50Z"
+        },
+        {
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "body": "> For the common case, where the roots are side-loaded to the RP, the transparency service can also side-load an approximate time. The latest batch you got is an estimate of the time!\r\n\r\nYup! Though I think we should still ponder clock skew because the RP's clock may get off after this update and then fail to take new updates.\r\n\r\nAlso I think a CA's recent history, even if the cert has since been expired, is still relevant in the limit for monitoring it. After all, transparency is inherently a post-facto thing. It takes time for a logged certificate to be observed by someone. Though, yeah, maybe we don't need a whole year's worth? I dunno. It's also really the TS's history that matters, provided the TS doesn't get too behind.\r\n\r\n> If a transparency service is that much behind, then it can't perform its main function: allowing clients to authenticate.\r\n\r\nWell, it has a few functions:\r\n* Allowing RPs to accept assertions\r\n* Providing a public view of all assertions the CA has made\r\n* Maintaining the invariant that RPs only accept assertions that have been mirrored\r\n\r\nBut you're right that a TS that's so far behind isn't doing anything. It's still meeting the primary invariant, but the system's effectively down at that point. :-)\r\n\r\nAnd perhaps a bigger point is that, support the TS is down for a bit and loses some entries because they were past the CA's storage window. If zero TS instances ever saw it, while it's unfortunate to lose a view of CA misbehavior, we know that no RP ever accepted it at any point in time, so it's not a *huge* deal.\r\n\r\n> (Transparency service is perhaps not the best name.)\r\n\r\nOriginally called it \"update service\" to kinda reflect what I expect to be the most common deployment pattern, but transparency service seemed a better generalization, especially in some of the other deployment models where it's a bunch of services together. But not attached to the name.\r\n\r\n> I want to try running this as easy as possible, so at the moment I'd lean towards a storage window of 4 weeks.\r\n\r\nYeah, I think you've convinced me that, at least for the CA, it's both useful and not particularly harmful to have a short storage window. Though the language around the TS and the HTTP interface overall would need to account for it. And we probably formally need to allow the TS to have holes in this \"TS went offline and got more than 4 weeks behind\" state.",
+          "createdAt": "2023-03-19T02:40:57Z",
+          "updatedAt": "2023-03-19T02:40:57Z"
+        }
+      ]
+    },
+    {
+      "number": 3,
+      "id": "I_kwDOJIBkVc5g61sf",
+      "title": "merkle_tree_sha256 TrustAnchors mean different things in different contexts",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/3",
+      "state": "OPEN",
+      "author": "davidben",
+      "authorAssociation": "OWNER",
+      "assignees": [],
+      "labels": [],
+      "body": "In the context of a BikeshedCertificate, (issuer, 1000) means this certificate is part of batch 1000 in the specified CA.\r\n\r\nIn the context of trust anchor negotiation (the RP's trust anchor list, the list of aliases), it refers to a whole window. That is, if window_size is 100, sending (issuer, 1000) means you are advertising (issuer, 901) through (issuer, 1000).\r\n\r\nThis works out, but it's a little weird. Maybe we should just allocate two different ProofType codepoints, with the second one referring to the whole window?",
+      "createdAt": "2023-03-15T18:21:16Z",
+      "updatedAt": "2023-03-31T11:54:56Z",
+      "closedAt": null,
+      "comments": [
+        {
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "body": "I've also started informally saying \"aliases\" now but the draft says \"additional trust anchors\". Also something to fix as we refine the negotiation story.",
+          "createdAt": "2023-03-30T23:02:52Z",
+          "updatedAt": "2023-03-30T23:02:52Z"
+        },
+        {
+          "author": "nharper",
+          "authorAssociation": "NONE",
+          "body": "It seems that the TrustAnchor struct is used in 3 distinct places (in the BikeshedCertificate, in the RP's store identifying which certs it accepts, and sent in the TrustAnchors TLS extension). This would be clearer if at least the last use case is separated out. In the BikeshedCertificate, the TrustAnchor appears to be the correct structure. In the RP's store, a list of TrustAnchors can be simplified to an issuer_id and a range of batch_numbers (though this is an implementation detail). When negotiating the use of Merkle Tree certificates, the RP needs to communicate a list of (issuer_id, batch_number range), which can be optimized as a list of (issuer_id, latest batch_number). While (issuer_id, latest batch_number) has the same format as a TrustAnchor, is is semantically different and could be improved upon in the spec by calling it something else.",
+          "createdAt": "2023-03-30T23:58:33Z",
+          "updatedAt": "2023-03-30T23:58:33Z"
+        },
+        {
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "body": "Yeah, I think that'd make sense. I think, when I'd originally written it, I was thinking:\r\n\r\n- RPs advertising (issuer_id, 1000) means they support (issuer_id, 1000), which is a true statement\r\n- If an RP supports 1000, it also supports 900..1000. (Or you can think of it as supporting 0..1000 and then throwing out all the expired ones.)\r\n- The subscriber/CA know this fact and so, they'll accept larger batch numbers in lieu of their current one, up to window size\r\n- RPs know that subscriber/CA knows this, so they choose not to advertise the other 99 values they also support, because you're not obligated to list everything you support, only to support everything you list.\r\n\r\nBut this is pretty confusing, so it probably makes sense to explicitly treat these as aliases.",
+          "createdAt": "2023-03-31T11:50:11Z",
+          "updatedAt": "2023-03-31T11:51:33Z"
+        },
+        {
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "body": "Really all this is an artifact of me, at the very last minute, switching from begrudgingly conceding that the subscriber has to know something about the structure of `merkle_tree_sha256` TrustAnchors (this 1000 implies 900..1000 property) to, at the least minute, realizing you can model this with the CA handling you a pile of aliases and then scribbling that in without thinking about it too hard! :-D\r\n\r\nBut it's pretty annoying that the CA has to list out hundreds of aliases, so maybe we actually should have some notion of versioned things in the generic structure anyway...",
+          "createdAt": "2023-03-31T11:54:34Z",
+          "updatedAt": "2023-03-31T11:54:56Z"
+        }
+      ]
+    },
+    {
+      "number": 5,
+      "id": "I_kwDOJIBkVc5hJ4Q1",
+      "title": "Clarify that unparsable signatures are misissuance",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/5",
+      "state": "OPEN",
+      "author": "davidben",
+      "authorAssociation": "OWNER",
+      "assignees": [],
+      "labels": [],
+      "body": "We currently say:\r\n\r\n> If the CA's private key signs an input that can be interpreted as a LabeledWindow structure, the CA is considered to have certified every assertion contained in every value in the `tree_heads` list, with expiry determined by `batch_number`, the position of the tree head in the list, and the CA's input parameters as described in {{parameters}}.\r\n\r\nBut this leaves open what if the CA's private key signs an input that can't be parsed. Buggy parsers in the RP are bad, but they shouldn't be instant security bugs. To fix that, we should say:\r\n\r\n* If the CA's private key signs *any* input beginning with `Merkle Tree Certificate Window\\0`, it is in scope for this document. If it cannot be parsed as a LabeledWindow, or if the hashes were invalid, this is misissuance.\r\n* Signing other labels is, a priori, also misissuance, though future protocol extensions MAY define other label prefixes that do have meaning. I.e., if we want to have the CA sign other messages with the same key, we may define a different label for it, but the CA shouldn't be allowed to just randomly sign stuff that seems like fun.",
+      "createdAt": "2023-03-17T22:15:47Z",
+      "updatedAt": "2023-03-20T15:51:14Z",
+      "closedAt": null,
+      "comments": [
+        {
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "body": "It's implied, but we should probably also spell it out explicitly: it doesn't matter if the CA ever served the signature over the HTTP interface. If it generated such a signature, it issued it and is responsible for whatever it signed.",
+          "createdAt": "2023-03-20T15:51:13Z",
+          "updatedAt": "2023-03-20T15:51:13Z"
+        }
+      ]
+    },
+    {
+      "number": 6,
+      "id": "I_kwDOJIBkVc5hK-07",
+      "title": "Should we include or only bind public keys in assertions",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/6",
+      "state": "OPEN",
+      "author": "bwesterb",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "The size of assertions is dominated by the public key. Classical public keys are small: ~32/64 bytes for ECC, ~256/512 bytes for RSA. Post-quantum public keys are larger. 1312/1953B for Dilithium2/3, 897B for Falcon512. There are also some unbalanced (smaller sigs, but larger public keys) schemes on the horizon with even larger public keys: 5kB for Mayo_2, \u2265500kB for UOV.\r\n\r\nInstead of storing the public key in the assertion, we could store `H(public key)` [1]. The relying party would still need to send the public key. We could include it in the bikeshed certificate.\r\n\r\nThe downsides are:\r\n\r\n1. It slightly complicates the protocol.\r\n2. We send 32 bytes extra in the TLS connection.\r\n3. We can't check for weak public keys.\r\n\r\n[1] We might actually want to do `H(domain sep || public key || claim_type || claims)`",
+      "createdAt": "2023-03-18T10:31:31Z",
+      "updatedAt": "2023-04-01T01:28:39Z",
+      "closedAt": null,
+      "comments": [
+        {
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "body": "We don't necessarily need to send 32 bytes extra in TLS. It's a little gross, but the RP could reconstruct the assertion with the hashed value. (Arguably it's better to make them do that, so they don't accidentally forgot to check H(pubkey) matches.)\r\n\r\nI kept thinking this would impede transparency somewhat, but I think that's just faulty intuition. If you know the set of expected pubkeys, you can check for an unexpected hash just as easily as an unexpected pubkey. And if you don't know the set, it's not like the unhashed pubkey is any more checkable (point 3 aside) than the hashed one.\r\n\r\nAnd yeah if serving obligations are a problem for CAs and TSs, a 30x size decrease sounds like a good way to clear it! :-) Though we'd have to be crystal clear that *any* unexpected pubkey hash counts as an unauthorized certificate, of equal severity, whether monitors can produce a preimage or not. That is, a CA can't say \"that's weird, but it's not a security issue because we promise no pubkey hashes to it\".  (Relatedly, #5.)\r\n\r\nAnother oddity: I think CAs typically check proof of possession of the private key, so they would need to see the preimage during issuance. We also expect CAs to have audit logs of everything they do. I think those together mean the CA must *store* the private key one way or another. If so, this would only offset serving costs, rather than storage costs. And if the CA's required to store it, they probably should still be able to produce it on demand, but I suppose that needn't necessarily be served online / mirrored by everyone.\r\n\r\n@devonobrien for thoughts on this.",
+          "createdAt": "2023-03-20T15:28:35Z",
+          "updatedAt": "2023-03-20T15:28:35Z"
+        },
+        {
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "body": "> It's a little gross, but the RP could reconstruct the assertion with the hashed value.\r\n\r\nOh, yes, of course :facepalm:, that's the obvious thing to do.\r\n\r\n>  any unexpected pubkey hash counts as an unauthorized certificate\r\n\r\nYes, definitely. (You could see this as a transformation of the underlying signature scheme: we're changing pk into H(pk) and sig into pk || sig.)\r\n\r\n> If so, this would only offset serving costs, rather than storage costs.\r\n\r\nAside from material cost, there is also the effort of keeping it running under stress or recovering from issues: it's easier to quickly fix something in a 100GB database, than a 3TB database.",
+          "createdAt": "2023-03-21T10:29:32Z",
+          "updatedAt": "2023-03-21T10:29:32Z"
+        },
+        {
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "body": "> It's a little gross, but the RP could reconstruct the assertion with the hashed value.\r\n\r\nWe should include the hash because otherwise the TS can't generate the Merkle tree.",
+          "createdAt": "2023-03-31T23:38:37Z",
+          "updatedAt": "2023-03-31T23:38:50Z"
+        },
+        {
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "body": "Oh yeah the CA-to-TS format definitely needs to include the hash. And I suppose that's the main nuisance here. The ideal format from CA to TS and subscriber to RP now differ and we need to keep them all straight, or pay some costs.",
+          "createdAt": "2023-04-01T01:28:38Z",
+          "updatedAt": "2023-04-01T01:28:38Z"
+        }
+      ]
+    },
+    {
+      "number": 7,
+      "id": "I_kwDOJIBkVc5hOLvI",
+      "title": "Should TLS CertificateType incorporate SubjectType?",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/7",
+      "state": "OPEN",
+      "author": "davidben",
+      "authorAssociation": "OWNER",
+      "assignees": [],
+      "labels": [],
+      "body": "Right now we have one TLS CertificateType value, `bikeshed`, for all of BikeshedCertificate. This is good for treating ProofType opaquely, but it also negotiates all SubjectTypes at once.\r\n\r\nThe SubjectType for TLS is implicitly `tls`, so that works out. But suppose we needed to define something like. If we build a TLS out of a different key type (e.g. KEMTLS), it'll want a different SubjectType. Or maybe we just decide we need to define `tls2` for some reason.\r\n\r\nSomething like KEMTLS might its own negotiation story anyway, so this may be fine. Something like `tls2` would need its own signaling extension. Perhaps we should just rename it to `bikeshed_tls` which is BikeshedCertificate + SubjectType = tls. And then other SubjectTypes intended for use with TLS just get their own corresponding CertificateType values.",
+      "createdAt": "2023-03-19T20:35:49Z",
+      "updatedAt": "2023-03-19T20:36:06Z",
+      "closedAt": null,
+      "comments": []
+    },
+    {
+      "number": 8,
+      "id": "I_kwDOJIBkVc5hTEdD",
+      "title": "Should the RP advertise TrustAnchor exclusions on top of TrustAnchor sets?",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/8",
+      "state": "OPEN",
+      "author": "davidben",
+      "authorAssociation": "OWNER",
+      "assignees": [],
+      "labels": [],
+      "body": "https://github.com/davidben/merkle-tree-certs/issues/3 discusses how the negotiation scheme really believes in sets of TrustAnchors. That is, the BikeshedCertificate is identified by a TrustAnchor, say (issuer, 950), but the RP sends a single value that means (issuer, 901..1000).\r\n\r\nSuppose some batch, (issuer, 975) went wrong. Because our sets have fixed width, we have to wait for the certificate lifetime to pass (i.e. the bad batch falls off the validity window) before RPs can accept anything from the CA again. Because even if the TS can tell the RP \"trust (issuer, 901...1000) but skip (issuer, 975)\", the RP can't tell the subscriber this. Over-advertising in the ClientHello risks the subscriber picking the bad batch.\r\n\r\nTwo answers for this:\r\n* Just advertise it anyway. The CA knows it messed up, so it's the CA's responsibility to get all the subscribers to renew and dump the old proof (e.g. with ACME ARI)\r\n* We have some way to list exclusions\r\n\r\nThe second could be interesting. What if we could send an exclusion list somehow? Either an explicit list of TrustAnchors, or some sort of hashing scheme. Structures, like CRLlite's Bloom filter cascade or perfect hashing describe a subset of a finite universe of inputs. If we can make that compact enough, that might be useful...\r\n\r\nIn particular, in a more traditional PKI mechanism, that would allow RPs to advertise supersets like \"CCADB/2023-03-20\" and then exclude the entries in there they don't trust.\r\n\r\nAlso, consider a distrust. Let's say I currently trust \"roots-v1\" which contains a bunch of CAs, {CA1, CA2, CA3, ...}, but now I need to distrust CA1. I can mint \"roots-v2\", but until the subscribers all get new alias lists from ACME, they won't understand it. The existing subscribers on CA2, CA3, etc., only know about \"roots-v1\". But if I advertise \"roots-v1\", the existing subscribers on CA1 will mistakenly believe their proof is still okay.",
+      "createdAt": "2023-03-20T15:46:46Z",
+      "updatedAt": "2023-03-21T22:59:22Z",
+      "closedAt": null,
+      "comments": [
+        {
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "body": "> Two answers for this\r\n\r\nLet me add a few other options:\r\n\r\n1. When the browser sees a proof from the bad batch, it retries the handshake excluding the CA or with Merkle Certs disabled.\r\n2. We completely distrust the CA that screwed up. The CA can then get a new CA id and mint new certs.\r\n\r\nYou are discussing two different exclusions: excluding CAs from a set and excluding batches from a CA. I think the former is more worthwhile than the latter. Hopefully it's rare that we need to exclude single batches. It'll be much more common that someone wants to exclude a CA completely from a set.",
+          "createdAt": "2023-03-21T14:58:55Z",
+          "updatedAt": "2023-03-21T14:59:04Z"
+        },
+        {
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "body": "> You are discussing two different exclusions: excluding CAs from a set and excluding batches from a CA. I think the former is more worthwhile than the latter.\r\n\r\nAgreed. Yeah, I mention the batches one just because it's more immediately relevant, but I was mostly thinking about it in the context of this CA set idea. That, I supsect, fits a bit more into a signature-based ProofType (which the doc's not defining) than this Merkle Tree one.",
+          "createdAt": "2023-03-21T22:59:21Z",
+          "updatedAt": "2023-03-21T22:59:21Z"
+        }
+      ]
+    },
+    {
+      "number": 9,
+      "id": "I_kwDOJIBkVc5hbOlT",
+      "title": "Feature Request: Support for IP ranges",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/9",
+      "state": "OPEN",
+      "author": "bemasc",
+      "authorAssociation": "NONE",
+      "assignees": [],
+      "labels": [],
+      "body": "Analogous to DNS wildcards, it would be helpful to support IP range claims like `192.0.2.0/24`.",
+      "createdAt": "2023-03-21T18:54:29Z",
+      "updatedAt": "2023-03-21T18:54:29Z",
+      "closedAt": null,
+      "comments": []
+    },
+    {
+      "number": 10,
+      "id": "I_kwDOJIBkVc5hbvK1",
+      "title": "Question: SubjectType, Intermediate CAs, and cross-signing",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/10",
+      "state": "OPEN",
+      "author": "bemasc",
+      "authorAssociation": "NONE",
+      "assignees": [],
+      "labels": [],
+      "body": "It seems like right now, there is only one SubjectType (\"tls\").  Since Intermediate CAs (ICAs) are not signing TLS keyshares, this seems to mean that ICAs are not (yet) supported.  I don't know that ICAs are important per se, but cross-signing has been an important way for new CAs to gain trust, and has the effect of making them ICAs from the point of view of pre-existing clients.\r\n\r\nIs there a plan here to support ICAs?  If so, I think it will be important to specify name constraints from the beginning.  (Adding constraints as an extension didn't work last time...)\r\n\r\nRelated brainstorm: it would be helpful to have a clear way for one CA to manage multiple independent signature streams.  That way, I can put my ICA/cross-signs into a very low-throughput stream that generates very small inclusion proofs, separate from my high-volume end-entity stream that generates larger proofs.",
+      "createdAt": "2023-03-21T20:42:55Z",
+      "updatedAt": "2023-03-21T23:05:58Z",
+      "closedAt": null,
+      "comments": [
+        {
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "body": "I don't think ICAs makes sense for specifically the Merkle Tree ProofType. The Merkle Tree ProofType already presumes an updated RP. Particularly in a world of giant PQ signatures, there's no point in doing that on the Subscriber <-> RP flow. Just push the new CA to the RP.\r\n\r\nThe document doesn't define other ProofTypes, but, for unupdated RPs, one could imagine defining a signature-based ProofType that looks more like X.509. In that case, yeah, I agree delegation makes sense. (Although large signatures shift the tradeoffs between delegations vs. RP updates a bit.)\r\n\r\nBut since X.509 path-building has been a disaster, I don't think that should be done with SubjectType and chaining. Rather, the chain of delegations and signatures should be embedded into `proof_data` directly. From the perspective of the subscriber, the whole chain is an atomic unit.\r\n\r\nAnd, yeah, definitely agreed that will require working through a whole lot of details, including constraints. I... have some thoughts on this, but have not yet put them together into anything coherent, so just started with the Merkle Tree idea. \ud83d\ude04 ",
+          "createdAt": "2023-03-21T22:55:14Z",
+          "updatedAt": "2023-03-21T23:05:58Z"
+        }
+      ]
+    },
+    {
+      "number": 11,
+      "id": "I_kwDOJIBkVc5hitCu",
+      "title": "Clarify you send only one CertificateEntry in TLS",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/11",
+      "state": "CLOSED",
+      "author": "davidben",
+      "authorAssociation": "OWNER",
+      "assignees": [],
+      "labels": [],
+      "body": "TLS Certificate messages technically have a whole set of them, to form a chain. We expect any chaining behavior to fit inside the `proof_data` field (see discussion in https://github.com/davidben/merkle-tree-certs/issues/10), so we should add a sentence to clarify this.",
+      "createdAt": "2023-03-22T20:58:00Z",
+      "updatedAt": "2023-04-04T13:30:55Z",
+      "closedAt": "2023-04-04T13:30:55Z",
+      "comments": []
+    },
+    {
+      "number": 12,
+      "id": "I_kwDOJIBkVc5hitIy",
+      "title": "Flesh out HTTP interface",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/12",
+      "state": "OPEN",
+      "author": "davidben",
+      "authorAssociation": "OWNER",
+      "assignees": [],
+      "labels": [],
+      "body": "Filing this to capture the TODO left in the doc",
+      "createdAt": "2023-03-22T20:58:20Z",
+      "updatedAt": "2023-03-22T20:58:20Z",
+      "closedAt": null,
+      "comments": []
+    },
+    {
+      "number": 13,
+      "id": "I_kwDOJIBkVc5hitMX",
+      "title": "Flesh out ACME interface",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/13",
+      "state": "OPEN",
+      "author": "davidben",
+      "authorAssociation": "OWNER",
+      "assignees": [],
+      "labels": [],
+      "body": "Filing this to capture TODO in the doc",
+      "createdAt": "2023-03-22T20:58:34Z",
+      "updatedAt": "2023-03-22T20:58:34Z",
+      "closedAt": null,
+      "comments": []
+    },
+    {
+      "number": 15,
+      "id": "I_kwDOJIBkVc5hveoS",
+      "title": "BikeshedCertificate is a placeholder name",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/15",
+      "state": "OPEN",
+      "author": "davidben",
+      "authorAssociation": "OWNER",
+      "assignees": [],
+      "labels": [],
+      "body": "Obviously we'll need to rename this at some point...",
+      "createdAt": "2023-03-24T18:10:40Z",
+      "updatedAt": "2023-03-24T18:10:40Z",
+      "closedAt": null,
+      "comments": []
+    },
+    {
+      "number": 16,
+      "id": "I_kwDOJIBkVc5hvfAa",
+      "title": "Editorial: Perhaps define certificate format earlier?",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/16",
+      "state": "OPEN",
+      "author": "davidben",
+      "authorAssociation": "OWNER",
+      "assignees": [],
+      "labels": [],
+      "body": "Assertions are defined up in section 4, but the corresponding certificate format is buried in 5.4.3. It is a convenient place to put it chronologically in the story, but it's kinda weird to have a core type be buried in there. Maybe we should move parts of that up to be next to Assertions.",
+      "createdAt": "2023-03-24T18:12:05Z",
+      "updatedAt": "2023-03-26T02:45:22Z",
+      "closedAt": null,
+      "comments": [
+        {
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "body": "Repetition is also an option. We could write \"later we will define a BikeshedCertificate as\".",
+          "createdAt": "2023-03-26T02:45:21Z",
+          "updatedAt": "2023-03-26T02:45:21Z"
+        }
+      ]
+    },
+    {
+      "number": 17,
+      "id": "I_kwDOJIBkVc5hv-aW",
+      "title": "Discuss clock skews",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/17",
+      "state": "OPEN",
+      "author": "davidben",
+      "authorAssociation": "OWNER",
+      "assignees": [],
+      "labels": [],
+      "body": "Probably under deployment considerations. The shortlived certificate aspect assumes your clock is right. Although we also get to play on easy: we're only considering up-to-date RPs and those RPs (presumably) got a clock update in the most recent update.\r\n\r\nThe clock could have gone wrong since though, so deployments would need to ponder this.",
+      "createdAt": "2023-03-24T20:03:02Z",
+      "updatedAt": "2023-03-24T20:03:02Z",
+      "closedAt": null,
+      "comments": []
+    },
+    {
+      "number": 18,
+      "id": "I_kwDOJIBkVc5hzIKX",
+      "title": "Resolve client certificate type negotiation issues",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/18",
+      "state": "OPEN",
+      "author": "davidben",
+      "authorAssociation": "OWNER",
+      "assignees": [],
+      "labels": [],
+      "body": "See https://www.ietf.org/archive/id/draft-davidben-tls-merkle-tree-certs-00.html#name-certificate-type-negotiatio",
+      "createdAt": "2023-03-26T06:39:28Z",
+      "updatedAt": "2023-03-26T06:39:28Z",
+      "closedAt": null,
+      "comments": []
+    },
+    {
+      "number": 19,
+      "id": "I_kwDOJIBkVc5h8eVK",
+      "title": "Mention canonical STHs in acknowledgements or so",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/19",
+      "state": "OPEN",
+      "author": "davidben",
+      "authorAssociation": "OWNER",
+      "assignees": [],
+      "labels": [],
+      "body": "@bifurcation reminded me at IETF that this draft shares a lot of properties with the canonical STHs proposal. We should mention it in acknowledgements\u2014apologies, that was not an intentional omission! I suspect it was just so long ago that we just forgot the original inspiration that schemes of that flavor. \ud83d\ude43",
+      "createdAt": "2023-03-28T05:46:27Z",
+      "updatedAt": "2023-03-28T19:00:52Z",
+      "closedAt": null,
+      "comments": [
+        {
+          "author": "bifurcation",
+          "authorAssociation": "NONE",
+          "body": "FWIW, I think the way the CT version of this tended to be labeled was \"STH discipline\", in the sense that STH issuance would be \"disciplined\" to a schedule, so that relying parties would know exactly which tree heads they needed to hold on to.  See, e.g.: https://groups.google.com/a/chromium.org/g/ct-policy/c/dqFtoFBy8YU/m/Xa67FWVCEgAJ",
+          "createdAt": "2023-03-28T18:11:31Z",
+          "updatedAt": "2023-03-28T18:11:31Z"
+        },
+        {
+          "author": "bifurcation",
+          "authorAssociation": "NONE",
+          "body": "BTW, my intent bringing this up in the TLS session wasn't to claim credit, just to make sure that this wasn't going to get tripped up by the same stuff that tripped up STH discipline!",
+          "createdAt": "2023-03-28T18:15:33Z",
+          "updatedAt": "2023-03-28T18:15:33Z"
+        },
+        {
+          "author": "devonobrien",
+          "authorAssociation": "COLLABORATOR",
+          "body": "No, thanks so much for bringing it up! STH discipline should definitely be mentioned in the doc as prior art / inspiration. Using MTCs as an optimization with a separate fallback is what allows us to use the concept at the core of STH discipline and extend it without falling into the same catch 22.",
+          "createdAt": "2023-03-28T19:00:52Z",
+          "updatedAt": "2023-03-28T19:00:52Z"
+        }
+      ]
+    },
+    {
+      "number": 21,
+      "id": "I_kwDOJIBkVc5ihZea",
+      "title": "Rename window to validity window?",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/21",
+      "state": "OPEN",
+      "author": "davidben",
+      "authorAssociation": "OWNER",
+      "assignees": [],
+      "labels": [],
+      "body": "\"Window\" is a really generic word. And if we do #2, we'll have multiple windows flying around. Maybe we should call it \"validity window\"? It makes it a bit clearer that we're talking about the particular thing.",
+      "createdAt": "2023-04-03T23:39:29Z",
+      "updatedAt": "2023-04-03T23:39:29Z",
+      "closedAt": null,
+      "comments": []
+    },
+    {
+      "number": 22,
+      "id": "I_kwDOJIBkVc5iu9nS",
+      "title": "Talk about RP <-> TS communication under Privacy Considerations",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/22",
+      "state": "OPEN",
+      "author": "davidben",
+      "authorAssociation": "OWNER",
+      "assignees": [],
+      "labels": [],
+      "body": "We do leave the exact RP <-> TS protocol out of scope, so that it can slot into existing RP update protocols, but it's probably worth calling out a couple things here:\r\n\r\n- The RP doesn't contact the TS on each TLS connection, only periodically and out-of-band\r\n- There's no reason for the RP to tell the TS anything about TLS connections. The RP just says \"give me the latest thing\" and the TS passes it along\r\n\r\nSo the only information passed along is \"I exist\", same as any other periodic update protocol.",
+      "createdAt": "2023-04-06T00:10:20Z",
+      "updatedAt": "2023-04-06T04:59:54Z",
+      "closedAt": null,
+      "comments": [
+        {
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "body": "It's more than I exist: it's I'm online.",
+          "createdAt": "2023-04-06T04:59:54Z",
+          "updatedAt": "2023-04-06T04:59:54Z"
+        }
+      ]
+    },
+    {
+      "number": 23,
+      "id": "I_kwDOJIBkVc5iywfV",
+      "title": "Evidence",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/23",
+      "state": "OPEN",
+      "author": "bwesterb",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "When a CA issues an assertion, it could provide evidence for it. For instance, a (list of) serialised dnssec proof(s) for a ACME dns-01 challenge or CAA record, if that was used. Most validations are http-01 for which no proof can be produced, except perhaps a signature of an independent multi-path DCV service, if that becomes a thing. Is evidence of assertions in scope? I suppose not for an initial version.",
+      "createdAt": "2023-04-06T13:53:29Z",
+      "updatedAt": "2023-04-06T13:54:47Z",
+      "closedAt": null,
+      "comments": []
+    },
+    {
+      "number": 24,
+      "id": "I_kwDOJIBkVc5iy14i",
+      "title": "TA negotiation useful for draft-kampanakis-tls-scas",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/24",
+      "state": "OPEN",
+      "author": "bwesterb",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "The trust anchor negotiation, and the to-be-written mechanism of provisioning TLS servers with opaque TA->proof blobs, we propose would be useful for [draft-kampanakis-tls-scas](https://datatracker.ietf.org/doc/draft-kampanakis-tls-scas-latest/) as well. We could allocate a `chainless-x509-cert` trust anchor type, whose identifiers would be something akin `ccadb-20230406`, with as proof a X509 certificate whose intermediates are included in ccadb at that date. The ACME client could check CCADB for the intermediates, and if they're included, the chainless trust anchor.",
+      "createdAt": "2023-04-06T14:06:28Z",
+      "updatedAt": "2023-04-06T14:06:28Z",
+      "closedAt": null,
+      "comments": []
+    },
+    {
+      "number": 25,
+      "id": "I_kwDOJIBkVc5jI0i6",
+      "title": "Subscriber-level delegation",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/25",
+      "state": "OPEN",
+      "author": "davidben",
+      "authorAssociation": "OWNER",
+      "assignees": [],
+      "labels": [],
+      "body": "(Filing this mostly to capture vague thoughts. Yet another angle in this vast design space.)\r\n\r\nOver in #10 (CC @bemasc), I asserted that we didn't need delegation in Merkle Tree certificates because they don't make sense when you assume an up-to-date RP anyway.\r\n\r\nTalking with folks at IETF, someone  (I forget who... was it you, @bwesterb?) brought up that a subscriber might want to do delegation. E.g. the CA checks you're authoritative `*.example.com`, but the subscriber wants to mint credentials on demand for `abcdef.example.com`.\r\n\r\nI think the way to think about that apparent contradiction is that _CA-level_ delegation doesn't make sense with up-to-date RPs, but _subscriber-level_ delegation can still make sense. That said, the tradeoffs for such delegation are harsher in a PQ world with large signatures. So I suspect this use case will be much less applicable in the future. But perhaps there are deployments where it's still worth the extra signature.\r\n\r\nSupposing that's the case and we want to support it, one answer is to go back to a generic chaining mechanism like X.509, but another answer is to separate the two, a la TLS delegated credentials. I kinda like the latter, actually. As an RP, we already think the two cases have very different requirements. Existing CA policies often distinguish cross-signs from technically-constrained CAs. If we want to capture that, one model would be basically TLS DCs, where we have a `tls_delegated_credential_signer` (or whatever) SubjectType and some place to inject the DC. Possibly amended to allow refining the name set in the DC, I dunno.",
+      "createdAt": "2023-04-11T21:40:46Z",
+      "updatedAt": "2023-04-12T08:47:18Z",
+      "closedAt": null,
+      "comments": [
+        {
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "body": "> I forget who... was it you, @bwesterb?\r\n\r\nIt might've been @galadran? Anyway, I do agree.",
+          "createdAt": "2023-04-12T08:47:18Z",
+          "updatedAt": "2023-04-12T08:47:18Z"
+        }
+      ]
+    }
+  ],
+  "pulls": [
+    {
+      "number": 4,
+      "id": "PR_kwDOJIBkVc5MV2RT",
+      "title": "Clarify time computations are done in POSIX time",
+      "url": "https://github.com/davidben/merkle-tree-certs/pull/4",
+      "state": "MERGED",
+      "author": "davidben",
+      "authorAssociation": "OWNER",
+      "assignees": [],
+      "labels": [],
+      "body": "Specifically, that they are done without leap seconds. This ensures the issuance and expiration times of all batches are consistently computed.\r\n\r\nI've also moved 'Terminology and Roles' to 'Conventions and Definitions' because it probably should go there.\r\n\r\n(This is the same as what would happen if you implemented it naively, but we need to be precise in a spec.)\r\n\r\nFixes #1",
+      "createdAt": "2023-03-17T22:10:07Z",
+      "updatedAt": "2023-03-24T12:31:07Z",
+      "baseRepository": "davidben/merkle-tree-certs",
+      "baseRefName": "main",
+      "baseRefOid": "8fc2899a8369dd2ef166baee0dc1245488b7279f",
+      "headRepository": "davidben/merkle-tree-certs",
+      "headRefName": "time",
+      "headRefOid": "6396096589efc539d68dd403d81552959e52665e",
+      "closedAt": "2023-03-18T01:18:43Z",
+      "mergedAt": "2023-03-18T01:18:43Z",
+      "mergedBy": "davidben",
+      "mergeCommit": {
+        "oid": "a5fbe420d77be2415b3c0bc7a1d6ce915bfb452d"
+      },
+      "comments": [
+        {
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "body": "@bob-beck since we've been talking about time a lot lately.",
+          "createdAt": "2023-03-17T22:10:27Z",
+          "updatedAt": "2023-03-17T22:10:27Z"
+        }
+      ],
+      "reviews": [
+        {
+          "id": "PRR_kwDOJIBkVc5QRlto",
+          "commit": {
+            "abbreviatedOid": "6396096"
+          },
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "state": "APPROVED",
+          "body": "",
+          "createdAt": "2023-03-17T22:15:40Z",
+          "updatedAt": "2023-03-17T22:15:40Z",
+          "comments": []
+        },
+        {
+          "id": "PRR_kwDOJIBkVc5QRlx8",
+          "commit": {
+            "abbreviatedOid": "6396096"
+          },
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-03-17T22:16:10Z",
+          "updatedAt": "2023-03-17T22:16:11Z",
+          "comments": [
+            {
+              "originalPosition": 28,
+              "body": "Positive integers I presume.",
+              "createdAt": "2023-03-17T22:16:10Z",
+              "updatedAt": "2023-03-17T22:16:11Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOJIBkVc5QRl18",
+          "commit": {
+            "abbreviatedOid": "6396096"
+          },
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-03-17T22:16:19Z",
+          "updatedAt": "2023-03-17T22:16:19Z",
+          "comments": [
+            {
+              "originalPosition": 30,
+              "body": "Do you allow negative integers?",
+              "createdAt": "2023-03-17T22:16:19Z",
+              "updatedAt": "2023-03-17T22:16:19Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOJIBkVc5QRmD3",
+          "commit": {
+            "abbreviatedOid": "6396096"
+          },
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-03-17T22:17:56Z",
+          "updatedAt": "2023-03-17T22:17:57Z",
+          "comments": [
+            {
+              "originalPosition": 30,
+              "body": "Hmm, not sure. We don't currently use them anywhere, but it's perfectly defined to add integers in integer space. Dunno, do you have a preference?",
+              "createdAt": "2023-03-17T22:17:56Z",
+              "updatedAt": "2023-03-17T22:17:57Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOJIBkVc5QRmEO",
+          "commit": {
+            "abbreviatedOid": "6396096"
+          },
+          "author": "bob-beck",
+          "authorAssociation": "NONE",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-03-17T22:17:58Z",
+          "updatedAt": "2023-03-17T22:17:59Z",
+          "comments": [
+            {
+              "originalPosition": 32,
+              "body": "Should you move this down with the other definitions (issuance time? etc)?",
+              "createdAt": "2023-03-17T22:17:59Z",
+              "updatedAt": "2023-03-17T22:17:59Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOJIBkVc5QRmGv",
+          "commit": {
+            "abbreviatedOid": "6396096"
+          },
+          "author": "bob-beck",
+          "authorAssociation": "NONE",
+          "state": "APPROVED",
+          "body": "",
+          "createdAt": "2023-03-17T22:18:15Z",
+          "updatedAt": "2023-03-17T22:18:15Z",
+          "comments": []
+        },
+        {
+          "id": "PRR_kwDOJIBkVc5QRmV7",
+          "commit": {
+            "abbreviatedOid": "6396096"
+          },
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-03-17T22:19:59Z",
+          "updatedAt": "2023-03-17T22:19:59Z",
+          "comments": [
+            {
+              "originalPosition": 28,
+              "body": "What, you don't want to get a time machine and start a CA in the 1800s? :-)\r\n\r\nI suspect this should go the same way as the question below. If we want to be able to say \"10 seconds before some time\", we should probably allow negative numbers just so the operation is defined everywhere. If not, probably doesn't matter either way.",
+              "createdAt": "2023-03-17T22:19:59Z",
+              "updatedAt": "2023-03-17T22:19:59Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOJIBkVc5QRmbw",
+          "commit": {
+            "abbreviatedOid": "6396096"
+          },
+          "author": "bob-beck",
+          "authorAssociation": "NONE",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-03-17T22:20:36Z",
+          "updatedAt": "2023-03-17T22:20:36Z",
+          "comments": [
+            {
+              "originalPosition": 30,
+              "body": "remember that time_t is signed. ",
+              "createdAt": "2023-03-17T22:20:36Z",
+              "updatedAt": "2023-03-17T22:20:36Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOJIBkVc5QR2x6",
+          "commit": {
+            "abbreviatedOid": "6396096"
+          },
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-03-18T01:12:44Z",
+          "updatedAt": "2023-03-18T01:12:44Z",
+          "comments": [
+            {
+              "originalPosition": 30,
+              "body": "Although this spec talks in terms of mathematical integers anyway. But yeah it seems signed is easier here.",
+              "createdAt": "2023-03-18T01:12:44Z",
+              "updatedAt": "2023-03-18T01:12:44Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOJIBkVc5QR2yx",
+          "commit": {
+            "abbreviatedOid": "6396096"
+          },
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-03-18T01:13:20Z",
+          "updatedAt": "2023-03-18T01:13:20Z",
+          "comments": [
+            {
+              "originalPosition": 28,
+              "body": "(Resolving to negatives allowed per other thread. It'll never actually happen but keeps the operations complete.)",
+              "createdAt": "2023-03-18T01:13:20Z",
+              "updatedAt": "2023-03-18T01:13:20Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOJIBkVc5QR2-R",
+          "commit": {
+            "abbreviatedOid": "6396096"
+          },
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-03-18T01:18:29Z",
+          "updatedAt": "2023-03-18T01:18:29Z",
+          "comments": [
+            {
+              "originalPosition": 32,
+              "body": "That's actually the parameters to a CA. The terminology bit is a little awkward... right now, the terminology section just defines enough terms to talk about the overview and the rest is inline. It's... probably not quite the right model. I didn't want to drop a wall of terms without how they go together, but everything inline was differently awkward so... now we have a bit of both. :-/\r\n\r\nThinking I'll leave it as-is for now, since I imagine the organization will need to change more drastically as the document evolves anyway.",
+              "createdAt": "2023-03-18T01:18:29Z",
+              "updatedAt": "2023-03-18T01:18:29Z"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": 14,
+      "id": "PR_kwDOJIBkVc5MyN10",
+      "title": "Reword the introduction slightly",
+      "url": "https://github.com/davidben/merkle-tree-certs/pull/14",
+      "state": "MERGED",
+      "author": "davidben",
+      "authorAssociation": "OWNER",
+      "assignees": [],
+      "labels": [],
+      "body": "That last bullet doesn't really fit in the list.",
+      "createdAt": "2023-03-23T23:04:45Z",
+      "updatedAt": "2023-03-24T12:30:53Z",
+      "baseRepository": "davidben/merkle-tree-certs",
+      "baseRefName": "main",
+      "baseRefOid": "a5fbe420d77be2415b3c0bc7a1d6ce915bfb452d",
+      "headRepository": "davidben/merkle-tree-certs",
+      "headRefName": "unindent",
+      "headRefOid": "7d7de6d68476a3e700d6d18dca415a32bffa43d4",
+      "closedAt": "2023-03-24T12:30:46Z",
+      "mergedAt": "2023-03-24T12:30:46Z",
+      "mergedBy": "davidben",
+      "mergeCommit": {
+        "oid": "932f949c3bd7d2201b8918e39a0f210e520b560d"
+      },
+      "comments": [],
+      "reviews": [
+        {
+          "id": "PRR_kwDOJIBkVc5Q2lzQ",
+          "commit": {
+            "abbreviatedOid": "7d7de6d"
+          },
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "state": "APPROVED",
+          "body": "",
+          "createdAt": "2023-03-24T11:10:40Z",
+          "updatedAt": "2023-03-24T11:10:40Z",
+          "comments": []
+        }
+      ]
+    },
+    {
+      "number": 20,
+      "id": "PR_kwDOJIBkVc5NiP4W",
+      "title": "Clarify that we use just a single CertificateEntry",
+      "url": "https://github.com/davidben/merkle-tree-certs/pull/20",
+      "state": "MERGED",
+      "author": "davidben",
+      "authorAssociation": "OWNER",
+      "assignees": [],
+      "labels": [],
+      "body": "Fixes #11",
+      "createdAt": "2023-04-03T23:37:52Z",
+      "updatedAt": "2023-04-04T13:30:58Z",
+      "baseRepository": "davidben/merkle-tree-certs",
+      "baseRefName": "main",
+      "baseRefOid": "932f949c3bd7d2201b8918e39a0f210e520b560d",
+      "headRepository": "davidben/merkle-tree-certs",
+      "headRefName": "single-cert-entry",
+      "headRefOid": "9eb61e9788432b475d3523d86b1b0ebfd3e9fc9b",
+      "closedAt": "2023-04-04T13:30:54Z",
+      "mergedAt": "2023-04-04T13:30:54Z",
+      "mergedBy": "davidben",
+      "mergeCommit": {
+        "oid": "94daadcb1645ad814ef3dea344a015886bbec655"
+      },
+      "comments": [],
+      "reviews": [
+        {
+          "id": "PRR_kwDOJIBkVc5Rtpvo",
+          "commit": {
+            "abbreviatedOid": "9eb61e9"
+          },
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "state": "APPROVED",
+          "body": "",
+          "createdAt": "2023-04-04T12:58:26Z",
+          "updatedAt": "2023-04-04T12:58:26Z",
+          "comments": []
+        }
+      ]
+    }
+  ]
+}
