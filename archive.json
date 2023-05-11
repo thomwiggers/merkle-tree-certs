@@ -1,6 +1,6 @@
 {
   "magic": "E!vIA5L86J2I",
-  "timestamp": "2023-04-13T01:26:31.670367+00:00",
+  "timestamp": "2023-05-11T01:35:45.649337+00:00",
   "repo": "davidben/merkle-tree-certs",
   "labels": [
     {
@@ -557,6 +557,30 @@
           "body": "> I forget who... was it you, @bwesterb?\r\n\r\nIt might've been @galadran? Anyway, I do agree.",
           "createdAt": "2023-04-12T08:47:18Z",
           "updatedAt": "2023-04-12T08:47:18Z"
+        }
+      ]
+    },
+    {
+      "number": 26,
+      "id": "I_kwDOJIBkVc5ljPhu",
+      "title": "Bitflips",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/26",
+      "state": "OPEN",
+      "author": "bwesterb",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "We should spend a few words on what to do with bit flips.",
+      "createdAt": "2023-05-10T11:44:26Z",
+      "updatedAt": "2023-05-10T12:30:17Z",
+      "closedAt": null,
+      "comments": [
+        {
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "body": "I do not think we should cover all this in the draft, but it's a good exercise.\r\n\r\n1. **Bitflip in assertion** at CA. Say an assertion is published for `gnogle.com` instead of `google.com`. This should be counted as a misissuance, and detecting these is one of the reasons for CT. I'd say it's out of scope to decide what should happen next: that's a policy matter of the root programs/RPs.\r\n2. **Bitflip when computing authentication path** at CA. The subscriber will get a certificate that simply doesn't validate. The ACME client can check the certificate before installing it. This will be caught early on without lasting impact.\r\n3. **Bitflip when signing a Window** at CA. This one is trickier. On the one hand, when checking the signed window, the TS see that the batch tree heads do not match. They could simply ignore that particular window. However, the situation would be similar to when a CA tries to split the world view. I guess we will need to be tough on this one too. It's not impossible to avoid for the CA: before publishing the signed window, the CA should check whether it verifies to detect any bit flip.\r\n6. **Bitflip when serving assertions** at CA. This is related to the previous. A bit flip might make the CA serve the wrong assertion. I think we can be more lenient here. If the TS fetches the assertions a second time, it'll probably get the correct values and the window signature will validate.\r\n7. **Bitflip when serving a Window** at CA. If the bit flip is in the signature, we can be lenient. It's important that the signed message is explicit: if we would not have included the tree heads in the signed window, then we couldn't be lenient here. If the bit flip is in one of the tree head, we can also be lenient: the signature will not validate and thus we know it's not part of a split world view attack.\r\n\r\nThere must be more cases I'm missing here.",
+          "createdAt": "2023-05-10T12:29:49Z",
+          "updatedAt": "2023-05-10T12:30:17Z"
         }
       ]
     }
