@@ -5,9 +5,9 @@
 Transport Layer Security                                     D. Benjamin
 Internet-Draft                                                D. O'Brien
 Intended status: Experimental                                 Google LLC
-Expires: 5 October 2023                                    B. Westerbaan
+Expires: 4 December 2023                                   B. Westerbaan
                                                               Cloudflare
-                                                            3 April 2023
+                                                             2 June 2023
 
 
                     Merkle Tree Certificates for TLS
@@ -57,7 +57,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 5 October 2023.
+   This Internet-Draft will expire on 4 December 2023.
 
 Copyright Notice
 
@@ -369,13 +369,13 @@ Table of Contents
 
    struct {
        ClaimType claim_type;
-       opaque claim_info<0..2^24-1>;
+       opaque claim_info<0..2^16-1>;
    } Claim;
 
    struct {
        SubjectType subject_type;
-       opaque subject_info<0..2^24-1>;
-       Claim claims<0..2^24-1>;
+       opaque subject_info<0..2^16-1>;
+       Claim claims<0..2^16-1>;
    } Assertion;
 
    An Assertion is roughly analogous to an X.509 TBSCertificate
@@ -388,7 +388,7 @@ Table of Contents
 
    struct {
        SignatureScheme signature;
-       opaque public_key<1..2^24-1>;
+       opaque public_key<1..2^16-1>;
    } TLSSubjectInfo;
 
    This structure represents the public half of a TLS signing key.  The
@@ -1282,7 +1282,7 @@ Table of Contents
 
    struct {
        SignatureScheme signature;
-       opaque public_key<1..2^24-1>;
+       opaque public_key<1..2^16-1>;
        /* TODO: Should there be an extension list? */
    } TLSSubjectInfo;
 
@@ -2042,9 +2042,9 @@ Table of Contents
    [I-D.draft-ietf-tls-esni]
               Rescorla, E., Oku, K., Sullivan, N., and C. A. Wood, "TLS
               Encrypted Client Hello", Work in Progress, Internet-Draft,
-              draft-ietf-tls-esni-15, 3 October 2022,
+              draft-ietf-tls-esni-16, 6 April 2023,
               <https://datatracker.ietf.org/doc/html/draft-ietf-tls-
-              esni-15>.
+              esni-16>.
 
    [LetsEncrypt]
               Let's Encrypt, "Let's Encrypt Stats", 7 March 2023,
