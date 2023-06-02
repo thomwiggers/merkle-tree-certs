@@ -484,7 +484,7 @@ Table of Contents
       function is always SHA-256 [SHS], but others may be defined.
 
    issuer_id:  An opaque byte string that identifies the CA.  This value
-      should be short and is limited to 32 bytes.
+      should be short and is limited to at most 32 bytes.
 
    public_key:  The public half of a signing keypair.  The corresponding
       private key, private_key, is known only to the CA.
