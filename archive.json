@@ -1,6 +1,6 @@
 {
   "magic": "E!vIA5L86J2I",
-  "timestamp": "2023-05-28T01:49:09.433195+00:00",
+  "timestamp": "2023-06-04T02:09:57.543681+00:00",
   "repo": "davidben/merkle-tree-certs",
   "labels": [
     {
@@ -591,6 +591,94 @@
           "updatedAt": "2023-05-10T12:30:17Z"
         }
       ]
+    },
+    {
+      "number": 27,
+      "id": "I_kwDOJIBkVc5nnEh-",
+      "title": "Elaborate on CA public key",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/27",
+      "state": "OPEN",
+      "author": "bwesterb",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "In `-00` we write\r\n\r\n```\r\npublic_key: The public half of a signing keypair. The corresponding private key, private_key, is known only to the CA.\r\n```\r\n\r\nThis needs elaboration. We could pick one post-quantum signature scheme, as we have picked SHA256 as hash. Say Dilithium2. It's not unconceivable that we'll want to migrate to a new signature scheme. Perhaps because Dilithium2's security is weaker than expected, but more likely because a significantly better post-quantum signature scheme has stabilised.\r\n\r\nProofType should afford enough flexibility for this.\r\n\r\nAlternatively, we can simply use a `TLSSubjectInfo` structure for the CA public key.\r\n\r\nA different idea, is to use a stateful hash based signature such as LMS or XMSS. There is no need to keep state: instead we can use the `n`th one-time-signature for the `n`th window. Clients can check whether the right OTS is used. Then if the CA accidentally signs and published the same window twice, then the private key is only compromised for that window, which will be ignored anyway by TSs if such a thing happens. With `n=16`, `h=20` and `w=16`, a key pair will last 119 years, signatures will be 880 bytes, verification will take 1,181 SHA2 hashes and keygen 1 billion SHA2 hashes. The upside is that this is definitely post-quantum secure. But this is all rather more complicated to implement than a plain signature, so I suppose we're better of sticking with Dilithium for now and accept we might have to change at some point. (This would complicate signing revocation lists.)\r\n",
+      "createdAt": "2023-06-02T14:19:10Z",
+      "updatedAt": "2023-06-02T17:26:45Z",
+      "closedAt": null,
+      "comments": [
+        {
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "body": "We probably don't need to optimize the signature here too much, compared to more fast-issuance schemes. We effectively amortize everything relating to the CA's key on the CA -> TS -> RP path. Keys and signatures barely even show up on the wire, though yeah we'll certainly need to define it as part of I guess #12.\r\n\r\nThe trick with using the counter in lieu of state is fun. I suppose, yeah, this is a place where stateful hash-based sigs are less of a disaster. But given the signature is not that load-bearing, I think \"don't do anything interesting and pick something default\" is the way to go. :-)",
+          "createdAt": "2023-06-02T15:03:25Z",
+          "updatedAt": "2023-06-02T15:03:25Z"
+        },
+        {
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "body": "> signatures barely even show up on the wire\r\n\r\nShouldn't they also be sent to the browser?\r\n\r\n> don't do anything interesting and pick something default\r\n\r\nYeah, let's keep it simple for now.",
+          "createdAt": "2023-06-02T15:59:51Z",
+          "updatedAt": "2023-06-02T15:59:51Z"
+        },
+        {
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "body": "> Shouldn't they also be sent to the browser?\r\n\r\nYeah, at least usually. :-) But it also happens in the RP <-> TS flow which is left somewhat unspecified. I expect browsers, for instance, would reuse their update protocols. Right now the text says:\r\n\r\n> The transparency service publishes the mirrored CA state using the same interface as {{publishing}}. The protocol between the relying party and transparency service is out of scope of this document. The relying party MAY use the interface defined here, or an existing application-specific authenticated channel.\r\n>\r\n> As discussed in {{authenticity}}, relying parties MUST ensure that any windows obtained were asserted by the CA. This SHOULD be done by having the transparency service forward the CA's signature, with the relying party verifying it. However, if the transparency service already maintains a trusted, authenticated channel to the relying parties (e.g. a software or root store update channel), relying parties MAY rely on the transparency service to validate the CA windows on their behalf, only sending valid windows over this channel.\r\n\r\nEither way, yeah, we do need to define the structure with the signed window structure because the CA <-> TS flow needs to be defined. (We actually don't _need_ define the public key format because that's never transmitted anywhere. It's part of your application-local root store configuration story. But defining a format for convenience makes sense anyway.)",
+          "createdAt": "2023-06-02T17:26:44Z",
+          "updatedAt": "2023-06-02T17:26:44Z"
+        }
+      ]
+    },
+    {
+      "number": 30,
+      "id": "I_kwDOJIBkVc5npZ-_",
+      "title": "Should the signing payload include 64 spaces in front?",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/30",
+      "state": "OPEN",
+      "author": "davidben",
+      "authorAssociation": "OWNER",
+      "assignees": [],
+      "labels": [],
+      "body": "Feedback from Ilari Liusvaara on the list:\r\n\r\n> - I think LabeledWindow should add 64 spaces in front, so it\r\n>  reuses the TLS 1.3 signature format.\r\n>\r\n>  This reduces risks of cross-protocol attack if the key gets\r\n>  reused anyway (despite there being MUST NOT requirement).\r\n\r\nI'm slightly torn on this, though I don't feel very strongly either way. (Past Davids have gone both directions on this.)\r\n\r\nOn one hand, it costs very little and reduces cross-protocol attacks with TLS 1.2 if you reuse keys. Even though we explicitly told you not to reuse those keys.\r\n\r\nOn the other hand, it only reduces attacks with TLS 1.2, and this key was already explicitly not meant to be a TLS key. Where do such things end? Should every new protocol forever guard against potential reuse with TLS 1.2, even when it (like this one) was not designed to be used with TLS? Should we guard against reuse with other protocols too? Context string constructions aren't standard (hash-to-curve does a suffix instead of a prefix), so the real defense is key separation. Maybe we should _finally_ just get better at key separation.",
+      "createdAt": "2023-06-02T22:39:26Z",
+      "updatedAt": "2023-06-02T22:39:26Z",
+      "closedAt": null,
+      "comments": []
+    },
+    {
+      "number": 31,
+      "id": "I_kwDOJIBkVc5npdLL",
+      "title": "Canonicalize claim structures further and think about multiplicity",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/31",
+      "state": "OPEN",
+      "author": "davidben",
+      "authorAssociation": "OWNER",
+      "assignees": [],
+      "labels": [],
+      "body": "Feedback from Ilari Liusvaara on the list:\r\n\r\n>  I don't see rule for how claims are sorted within each type,\r\n>  only how different types are sorted.\r\n\r\nand:\r\n\r\n> - If each claim was in its own Claim, then one could maybe even\r\n>  shorten [the length prefix] to 8 bits. Similarly, one could merge ipv4/ipv6 and\r\n>  dns/dns_wildcard.\r\n>\r\n>  This could also simplify sorting: Sort by type, lexicographic\r\n>  sort by claim contents.\r\n\r\nMoving the multiplicity up a layer avoids every ClaimType defining it itself, and reuses some length prefixes given how the TLS presentation language works, though it means a non-multiplicative Claim would need extra logic to reject duplicates. Is that a problem?\r\n\r\nOne way or another, I am a fan of canonicalizing the order more strongly, just for the sake of having only one way to encode it. Though how we canonicalize may be interesting... if DNS names are pre-sorted in hierarchical order, evaluating name constraints efficiently becomes a lot easier.",
+      "createdAt": "2023-06-02T22:56:08Z",
+      "updatedAt": "2023-06-02T22:56:08Z",
+      "closedAt": null,
+      "comments": []
+    },
+    {
+      "number": 32,
+      "id": "I_kwDOJIBkVc5npi7K",
+      "title": "Feedback on hash construction",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/32",
+      "state": "OPEN",
+      "author": "davidben",
+      "authorAssociation": "OWNER",
+      "assignees": [
+        "bwesterb"
+      ],
+      "labels": [],
+      "body": "Feedback from Ilari Liusvaara on the list:\r\n\r\n> - The root hash being dependent on issuer and batch number iff there\r\n>  are multiple assertions looks very odd.\r\n>\r\n>  Empty assertion list might be special. But this also happens for\r\n>  one assertion.\r\n\r\nIt is a little odd that HashNode takes all these extra distinguishers, but HashAssertion doesn't. @bwesterb, you suggested doing something like this to align with something that SPHINCS+ was doing, right? Should we have it on both?",
+      "createdAt": "2023-06-02T23:29:22Z",
+      "updatedAt": "2023-06-02T23:29:22Z",
+      "closedAt": null,
+      "comments": []
     }
   ],
   "pulls": [
@@ -917,6 +1005,80 @@
           "body": "",
           "createdAt": "2023-04-04T12:58:26Z",
           "updatedAt": "2023-04-04T12:58:26Z",
+          "comments": []
+        }
+      ]
+    },
+    {
+      "number": 28,
+      "id": "PR_kwDOJIBkVc5SB9wy",
+      "title": "Shorten some length prefixes",
+      "url": "https://github.com/davidben/merkle-tree-certs/pull/28",
+      "state": "CLOSED",
+      "author": "davidben",
+      "authorAssociation": "OWNER",
+      "assignees": [],
+      "labels": [],
+      "body": "Feedback from Ilari Liusvaara on the list. I picked the lengths mostly arbitrarily. This shaves a few bytes, though it does introduce some length limits over X.509 in TLS today. (TLS uses 2^24-1 for the overall certificate structure. Within a certificate, DER gives variable-length lengths.)",
+      "createdAt": "2023-06-02T19:42:24Z",
+      "updatedAt": "2023-06-02T19:43:21Z",
+      "baseRepository": "davidben/merkle-tree-certs",
+      "baseRefName": "main",
+      "baseRefOid": "94daadcb1645ad814ef3dea344a015886bbec655",
+      "headRepository": "davidben/merkle-tree-certs",
+      "headRefName": "trim-lengths",
+      "headRefOid": "70e7a9955e1af5dafc850a36c15b15a19e3dbd6e",
+      "closedAt": "2023-06-02T19:43:16Z",
+      "mergedAt": null,
+      "mergedBy": null,
+      "mergeCommit": null,
+      "comments": [
+        {
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "body": "Actually, let me close this and do a larger PR with the rest of the comments too. I missed there were a few more.",
+          "createdAt": "2023-06-02T19:43:16Z",
+          "updatedAt": "2023-06-02T19:43:16Z"
+        }
+      ],
+      "reviews": []
+    },
+    {
+      "number": 29,
+      "id": "PR_kwDOJIBkVc5SCkhp",
+      "title": "Shorten some length prefixes",
+      "url": "https://github.com/davidben/merkle-tree-certs/pull/29",
+      "state": "OPEN",
+      "author": "davidben",
+      "authorAssociation": "OWNER",
+      "assignees": [],
+      "labels": [],
+      "body": "Feedback from Ilari Liusvaara on the list. I picked the lengths mostly arbitrarily. This shaves a few bytes, though it does introduce some length limits over X.509 in TLS today. (TLS uses 2^24-1 for the overall certificate structure. Within a certificate, DER gives variable-length lengths.)",
+      "createdAt": "2023-06-02T22:33:29Z",
+      "updatedAt": "2023-06-03T00:10:54Z",
+      "baseRepository": "davidben/merkle-tree-certs",
+      "baseRefName": "main",
+      "baseRefOid": "94daadcb1645ad814ef3dea344a015886bbec655",
+      "headRepository": "davidben/merkle-tree-certs",
+      "headRefName": "trim-lengths-2",
+      "headRefOid": "32fd2da1654bc4e88df26db5617731019910a6e6",
+      "closedAt": null,
+      "mergedAt": null,
+      "mergedBy": null,
+      "mergeCommit": null,
+      "comments": [],
+      "reviews": [
+        {
+          "id": "PRR_kwDOJIBkVc5W8QN9",
+          "commit": {
+            "abbreviatedOid": "32fd2da"
+          },
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "state": "APPROVED",
+          "body": "",
+          "createdAt": "2023-06-03T00:10:54Z",
+          "updatedAt": "2023-06-03T00:10:54Z",
           "comments": []
         }
       ]
