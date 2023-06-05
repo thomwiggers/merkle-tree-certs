@@ -5,9 +5,9 @@
 Transport Layer Security                                     D. Benjamin
 Internet-Draft                                                D. O'Brien
 Intended status: Experimental                                 Google LLC
-Expires: 7 October 2023                                    B. Westerbaan
+Expires: 7 December 2023                                B. E. Westerbaan
                                                               Cloudflare
-                                                            5 April 2023
+                                                             5 June 2023
 
 
                     Merkle Tree Certificates for TLS
@@ -57,7 +57,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 7 October 2023.
+   This Internet-Draft will expire on 7 December 2023.
 
 Copyright Notice
 
@@ -424,7 +424,7 @@ Table of Contents
    unfortunate that subscribers cannot properly separate their HTTPS vs
    FTPS keys, or their port 443 vs port 444 keys.  One option here is to
    have HTTPS claims instead, and then other protocols can have FTPS
-   claims, etc.]]
+   claims, etc. #35 ]]
 
 4.1.  DNS Claims
 
@@ -514,7 +514,7 @@ Table of Contents
    flow does not depend on the signature, only the CA -> Transparency
    Service -> RP flow.  The document is not currently arranged to
    capture this, but it probably should be.  We probably need to
-   decouple the signing half and the Merkle Tree half slightly.]]
+   decouple the signing half and the Merkle Tree half slightly. #36 ]]
 
    Certificates are issued in batches.  Batches are numbered
    consecutively, starting from zero.  All certificates in a batch have
@@ -733,7 +733,7 @@ Table of Contents
 5.4.3.  Certificate Format
 
    [[TODO: BikeshedCertificate is a placeholder name until someone comes
-   up with a better one.]]
+   up with a better one. #15 ]]
 
    For each assertion in the tree, the CA constructs a
    BikeshedCertificate structure containing the assertion and a proof.
@@ -1078,7 +1078,7 @@ Table of Contents
    publishing for a while, it may suddenly have to catch up on many
    batches.  Should we allow the mirror to catch up to the latest window
    and skip the intervening batches?  The intervening batches are
-   guaranteed to have been expired]]
+   guaranteed to have been expired #37 ]]
 
 7.2.  Single Update Service with Multiple Mirrors
 
@@ -1175,7 +1175,7 @@ Table of Contents
 
    [[TODO: This section hasn't been written yet.  For now, this is just
    an informal sketch.  The real text will need to define request/
-   response formats more precisely, with MIME types, etc.]]
+   response formats more precisely, with MIME types, etc. #12 ]]
 
    CAs and transparency services publish state over an HTTP [RFC9110]
    interface described below.
@@ -1227,15 +1227,15 @@ Table of Contents
    [[TODO: Once a batch has expired, do we allow a CA to stop publishing
    it?  The transparency service can already log it for as long, or as
    little, as it wishes.  We effectively have CT log temporal sharding
-   built into the system.]]
+   built into the system. #2 ]]
 
    [[TODO: If we have the window endpoint, do we still need to separate
-   "info" and "assertions"?]]
+   "info" and "assertions"? #12 ]]
 
 9.  ACME Extensions
 
    [[TODO: This section hasn't been written yet.  Instead, what follows
-   is an informal sketch and design discussion.]]
+   is an informal sketch and design discussion. #13 ]]
 
    See Section 11.4 for the overall model this should target.
 
@@ -1283,7 +1283,7 @@ Table of Contents
    struct {
        SignatureScheme signature;
        opaque public_key<1..2^24-1>;
-       /* TODO: Should there be an extension list? */
+       /* TODO: Should there be an extension list? #38 */
    } TLSSubjectInfo;
 
    A TLSSubjectInfo describes a TLS signing key.  The signature field is
@@ -1311,12 +1311,13 @@ Table of Contents
    document.
 
    [[TODO: If other schemes get defined before this document is done,
-   add them here.  After that, it's on the other schemes to do it.]]
+   add them here.  After that, it's on the other schemes to do it. #39
+   ]]
 
 10.2.  The Bikeshed Certificate Type
 
    [[TODO: Bikeshed is a placeholder name until someone comes up with a
-   better one.]]
+   better one. #15]]
 
    This section defines the Bikeshed TLS certificate type, which may be
    negotiated with the client_certificate_type, server_certificate_type
@@ -1328,7 +1329,7 @@ Table of Contents
 
    [[TODO: None of these three extensions is quite right for client
    certificates because the negotiation isn't symmetric.  See discussion
-   in Section 10.4.  We may need to define a third one.]]
+   in Section 10.4.  We may need to define a third one. #18]]
 
    When negotiated, the Certificate message MUST contain a single
    CertificateEntry structure.  CertificateEntry is updated as follows:
@@ -1389,8 +1390,8 @@ Table of Contents
    a new certificate type seems most natural.  That suggests this
    certificate type isn't about negotiating BikeshedCertificate in
    general, but specifically SubjectType.tls and TLSSubjectInfo.  So
-   perhaps the certificate type should be TLSSubjectInfo or
-   BikeshedTLS.]]
+   perhaps the certificate type should be TLSSubjectInfo or BikeshedTLS.
+   #7 ]]
 
 10.3.  The Trust Anchors Extension
 
@@ -1422,7 +1423,7 @@ Table of Contents
 
    [[TODO: We may need a new certificate types extension, either in this
    document or a separate one.  For now, this section just informally
-   describes the problem.]]
+   describes the problem. #18 ]]
 
    The server certificate type is negotiated as follows:
 
@@ -1753,7 +1754,7 @@ Table of Contents
 
    [[TODO: Is it worth defining an API for Merkle Tree CAs to publish a
    revocation list?  That would allow automatically populating CRLite
-   and CRLSets.  Maybe that's a separate document.]]
+   and CRLSets.  Maybe that's a separate document. #41]]
 
 13.4.  Transparency
 
@@ -1875,7 +1876,8 @@ Table of Contents
                       Table 2: Additions to the TLS
                         Certificate Types Registry
 
-   TODO: Define registries for the enums introduced in this document:
+   [[ TODO: Define registries for the enums introduced in this document.
+   #42]]
 
    *  SubjectType
 
@@ -2042,9 +2044,9 @@ Table of Contents
    [I-D.draft-ietf-tls-esni]
               Rescorla, E., Oku, K., Sullivan, N., and C. A. Wood, "TLS
               Encrypted Client Hello", Work in Progress, Internet-Draft,
-              draft-ietf-tls-esni-15, 3 October 2022,
+              draft-ietf-tls-esni-16, 6 April 2023,
               <https://datatracker.ietf.org/doc/html/draft-ietf-tls-
-              esni-15>.
+              esni-16>.
 
    [LetsEncrypt]
               Let's Encrypt, "Let's Encrypt Stats", 7 March 2023,

@@ -11,23 +11,21 @@
 <meta content="
        This document describes Merkle Tree certificates, a new certificate type for use with TLS. A relying party that regularly fetches information from a transparency service can use this certificate type as a size optimization over more conventional mechanisms with post-quantum signatures. Merkle Tree certificates integrate the roles of X.509 and Certificate Transparency, achieving comparable security properties with a smaller message size, at the cost of more limited applicability. 
     " name="description">
-<meta content="xml2rfc 3.17.0" name="generator">
+<meta content="xml2rfc 3.17.2" name="generator">
 <meta content="draft-davidben-tls-merkle-tree-certs-latest" name="ietf.draft">
 <!-- Generator version information:
-  xml2rfc 3.17.0
-    Python 3.10.10
+  xml2rfc 3.17.2
+    Python 3.11.3
     appdirs 1.4.4
     ConfigArgParse 1.5.3
     google-i18n-address 2.5.2
-    html5lib 1.1
     intervaltree 3.1.0
     Jinja2 3.1.2
     lxml 4.9.2
-    MarkupSafe 2.1.1
     pycountry 22.3.5
     PyYAML 6.0
-    requests 2.28.1
-    setuptools 65.6.0
+    requests 2.31.0
+    setuptools 67.7.2
     six 1.16.0
     wcwidth 0.2.6
 -->
@@ -611,6 +609,7 @@ sub, sup {
   clear: left;
   float: left;
   text-align: right;
+  margin-right: 1ch;
 }
 #identifiers dd {
   margin: 0;
@@ -662,7 +661,8 @@ sub, sup {
 .references dt {
   text-align: right;
   font-weight: bold;
-  min-width: 7em;
+  min-width: 10ch;
+  margin-right: 1.5ch;
 }
 .references dt:target::before {
   content: "⇒";
@@ -670,7 +670,7 @@ sub, sup {
   margin: 0 10px 0 -25px;
 }
 .references dd {
-  margin-left: 8em !important;
+  margin-left: 12ch !important;
   overflow: auto;
 }
 
@@ -1048,11 +1048,11 @@ svg :is([fill="white"], [fill^="#fff"]) {
 <thead><tr>
 <td class="left">Internet-Draft</td>
 <td class="center">Merkle Tree Certificates for TLS</td>
-<td class="right">April 2023</td>
+<td class="right">June 2023</td>
 </tr></thead>
 <tfoot><tr>
 <td class="left">Benjamin, et al.</td>
-<td class="center">Expires 7 October 2023</td>
+<td class="center">Expires 7 December 2023</td>
 <td class="right">[Page]</td>
 </tr></tfoot>
 </table>
@@ -1065,12 +1065,12 @@ svg :is([fill="white"], [fill^="#fff"]) {
 <dd class="internet-draft">draft-davidben-tls-merkle-tree-certs-latest</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
-<time datetime="2023-04-05" class="published">5 April 2023</time>
+<time datetime="2023-06-05" class="published">5 June 2023</time>
     </dd>
 <dt class="label-intended-status">Intended Status:</dt>
 <dd class="intended-status">Experimental</dd>
 <dt class="label-expires">Expires:</dt>
-<dd class="expires"><time datetime="2023-10-07">7 October 2023</time></dd>
+<dd class="expires"><time datetime="2023-12-07">7 December 2023</time></dd>
 <dt class="label-authors">Authors:</dt>
 <dd class="authors">
 <div class="author">
@@ -1082,7 +1082,7 @@ svg :is([fill="white"], [fill^="#fff"]) {
 <div class="org">Google LLC</div>
 </div>
 <div class="author">
-      <div class="author-name">B. Westerbaan</div>
+      <div class="author-name">B. E. Westerbaan</div>
 <div class="org">Cloudflare</div>
 </div>
 </dd>
@@ -1128,7 +1128,7 @@ svg :is([fill="white"], [fill^="#fff"]) {
         time. It is inappropriate to use Internet-Drafts as reference
         material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
 <p id="section-boilerplate.1-4">
-        This Internet-Draft will expire on 7 October 2023.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+        This Internet-Draft will expire on 7 December 2023.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="copyright">
@@ -1575,7 +1575,7 @@ struct {
 <p id="section-4-9">Likewise, a Claim structure describes some claim about the subject. The <code>claim_info</code> field is interpreted according to the <code>claim_type</code>. Each Claim structure in an Assertion's <code>claims</code> field MUST have a unique <code>claim_type</code> and all values MUST be sorted in order of increasing <code>claim_type</code>. Structures violating this constraint MUST be rejected.<a href="#section-4-9" class="pilcrow">¶</a></p>
 <p id="section-4-10">When a relying party interprets an Assertion certified by the CA, it MUST ignore any Claim values with unrecognized <code>claim_type</code>. When a CA interprets an Assertion in a certification request from a subscriber, it MUST reject any Claim values with unrecognized <code>claim_type</code>.<a href="#section-4-10" class="pilcrow">¶</a></p>
 <p id="section-4-11">This document defines claim types for DNS names and IP addresses, but others can be defined.<a href="#section-4-11" class="pilcrow">¶</a></p>
-<p id="section-4-12">[[TODO: For now, the claims below just transcribe the X.509 GeneralName structure. Should these be origins instead? For HTTPS, it's a pity to not capture the scheme and port. We do mandate ALPN in <a href="#tls-certificate-type" class="auto internal xref">Section 10.2</a>, so cross-protocol attacks are mitigated, but it's unfortunate that subscribers cannot properly separate their HTTPS vs FTPS keys, or their port 443 vs port 444 keys. One option here is to have HTTPS claims instead, and then other protocols can have FTPS claims, etc.]]<a href="#section-4-12" class="pilcrow">¶</a></p>
+<p id="section-4-12">[[TODO: For now, the claims below just transcribe the X.509 GeneralName structure. Should these be origins instead? For HTTPS, it's a pity to not capture the scheme and port. We do mandate ALPN in <a href="#tls-certificate-type" class="auto internal xref">Section 10.2</a>, so cross-protocol attacks are mitigated, but it's unfortunate that subscribers cannot properly separate their HTTPS vs FTPS keys, or their port 443 vs port 444 keys. One option here is to have HTTPS claims instead, and then other protocols can have FTPS claims, etc. #35 ]]<a href="#section-4-12" class="pilcrow">¶</a></p>
 <div id="dns-claims">
 <section id="section-4.1">
         <h3 id="name-dns-claims">
@@ -1676,7 +1676,7 @@ struct {
         <dd class="break"></dd>
 </dl>
 <p id="section-5.1-3">These values are public and known by the relying party and the CA. They may not be changed for the lifetime of the CA. To change these parameters, the entity operating a CA may deploy a second CA and either operate both during a transition, or stop issuing from the previous CA.<a href="#section-5.1-3" class="pilcrow">¶</a></p>
-<p id="section-5.1-4">[[TODO: The signing key case is interesting. A CA could actually maintain a single stream of Merkle Trees, but then sign everything with multiple keys to support rotation. The CA -&gt; Subscriber -&gt; RP flow does not depend on the signature, only the CA -&gt; Transparency Service -&gt; RP flow. The document is not currently arranged to capture this, but it probably should be. We probably need to decouple the signing half and the Merkle Tree half slightly.]]<a href="#section-5.1-4" class="pilcrow">¶</a></p>
+<p id="section-5.1-4">[[TODO: The signing key case is interesting. A CA could actually maintain a single stream of Merkle Trees, but then sign everything with multiple keys to support rotation. The CA -&gt; Subscriber -&gt; RP flow does not depend on the signature, only the CA -&gt; Transparency Service -&gt; RP flow. The document is not currently arranged to capture this, but it probably should be. We probably need to decouple the signing half and the Merkle Tree half slightly. #36 ]]<a href="#section-5.1-4" class="pilcrow">¶</a></p>
 <p id="section-5.1-5">Certificates are issued in batches. Batches are numbered consecutively, starting from zero. All certificates in a batch have the same issuance time, determined by <code>start_time + batch_duration * batch_number</code>. This is known as the batch's issuance time. That is, batch 0 has an issuance time of <code>start_time</code>, and issuance times increment by <code>batch_duration</code>. A CA can issue no more frequently than <code>batch_duration</code>. <code>batch_duration</code> determines how long it takes for the CA to return a certificate to the subscriber.<a href="#section-5.1-5" class="pilcrow">¶</a></p>
 <p id="section-5.1-6">All certificates in a batch have the same expiration time, computed as <code>lifetime</code> past the issuance time. After this time, the certificates in a batch are no longer valid. Merkle Tree certificates uses a short-lived certificates model, such that certificate expiration replaces an external revocation signal like CRLs <span>[<a href="#RFC5280" class="cite xref">RFC5280</a>]</span> or OCSP <span>[<a href="#RFC6960" class="cite xref">RFC6960</a>]</span>. <code>lifetime</code> SHOULD be set accordingly. For instance, a deployment with a corresponding maximum OCSP <span>[<a href="#RFC6960" class="cite xref">RFC6960</a>]</span> response lifetime of 14 days SHOULD use a value no higher than 14 days. See <a href="#revocation" class="auto internal xref">Section 13.3</a> for details.<a href="#section-5.1-6" class="pilcrow">¶</a></p>
 <p id="section-5.1-7">CAs are RECOMMENDED to use a <code>batch_duration</code> of one hour, and a <code>lifetime</code> of 14 days. This results in a <code>window_size</code> of 336, for a total of 10,752 bytes in SHA-256 hashes.<a href="#section-5.1-7" class="pilcrow">¶</a></p>
@@ -1859,7 +1859,7 @@ struct {
           <h4 id="name-certificate-format">
 <a href="#section-5.4.3" class="section-number selfRef">5.4.3. </a><a href="#name-certificate-format" class="section-name selfRef">Certificate Format</a>
           </h4>
-<p id="section-5.4.3-1">[[TODO: BikeshedCertificate is a placeholder name until someone comes up with a better one.]]<a href="#section-5.4.3-1" class="pilcrow">¶</a></p>
+<p id="section-5.4.3-1">[[TODO: BikeshedCertificate is a placeholder name until someone comes up with a better one. #15 ]]<a href="#section-5.4.3-1" class="pilcrow">¶</a></p>
 <p id="section-5.4.3-2">For each assertion in the tree, the CA constructs a BikeshedCertificate structure containing the assertion and a proof. A proof is a message that allows the relying party to accept the associated assertion, provided it trusts the CA and recognizes the tree head. The structures are defined below:<a href="#section-5.4.3-2" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-5.4.3-3">
 <pre>
@@ -2086,7 +2086,7 @@ Otherwise, set <code>hash</code> to the output of <code>HashNode(hash, v, i + 1,
             </ol>
 </li>
         </ol>
-<p id="section-7.1-4">[[TODO: If the mirror gets far behind, if the CA just stops publishing for a while, it may suddenly have to catch up on many batches. Should we allow the mirror to catch up to the latest window and skip the intervening batches? The intervening batches are guaranteed to have been expired]]<a href="#section-7.1-4" class="pilcrow">¶</a></p>
+<p id="section-7.1-4">[[TODO: If the mirror gets far behind, if the CA just stops publishing for a while, it may suddenly have to catch up on many batches. Should we allow the mirror to catch up to the latest window and skip the intervening batches? The intervening batches are guaranteed to have been expired #37 ]]<a href="#section-7.1-4" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="single-update-multiple-mirrors">
@@ -2146,7 +2146,7 @@ Otherwise, set <code>hash</code> to the output of <code>HashNode(hash, v, i + 1,
       <h2 id="name-http-interface">
 <a href="#section-8" class="section-number selfRef">8. </a><a href="#name-http-interface" class="section-name selfRef">HTTP Interface</a>
       </h2>
-<p id="section-8-1">[[TODO: This section hasn't been written yet. For now, this is just an informal sketch. The real text will need to define request/response formats more precisely, with MIME types, etc.]]<a href="#section-8-1" class="pilcrow">¶</a></p>
+<p id="section-8-1">[[TODO: This section hasn't been written yet. For now, this is just an informal sketch. The real text will need to define request/response formats more precisely, with MIME types, etc. #12 ]]<a href="#section-8-1" class="pilcrow">¶</a></p>
 <p id="section-8-2">CAs and transparency services publish state over an HTTP <span>[<a href="#RFC9110" class="cite xref">RFC9110</a>]</span> interface described below.<a href="#section-8-2" class="pilcrow">¶</a></p>
 <p id="section-8-3">CAs and any components of the transparency service that maintain window information implement the following interfaces:<a href="#section-8-3" class="pilcrow">¶</a></p>
 <ul class="normal">
@@ -2173,8 +2173,8 @@ Otherwise, set <code>hash</code> to the output of <code>HashNode(hash, v, i + 1,
 <p id="section-8-8">Services implementing this interface SHOULD wait until batch state is fully propagated to all servers before updating the latest batch number. That is, if any server returns a latest batch number of N in either of the first two HTTP endpoints, batch numbers N and below SHOULD be available under the last three batch-number-specific HTTP endpoints in all servers. If this property does not hold at any time, it is considered a service unavailability.<a href="#section-8-8" class="pilcrow">¶</a></p>
 <p id="section-8-9">Individual servers in a service MAY return different latest batch numbers. Individual servers MAY also differ on whether a batch number has a response available or return a 404 error. Provided the above consistency property holds, these two inconsistencies do not constitute service unavailability.<a href="#section-8-9" class="pilcrow">¶</a></p>
 <p id="section-8-10"><a href="#ts-and-ca-availability" class="auto internal xref">Section 11.5</a> discusses service availability requirements.<a href="#section-8-10" class="pilcrow">¶</a></p>
-<p id="section-8-11">[[TODO: Once a batch has expired, do we allow a CA to stop publishing it? The transparency service can already log it for as long, or as little, as it wishes. We effectively have CT log temporal sharding built into the system.]]<a href="#section-8-11" class="pilcrow">¶</a></p>
-<p id="section-8-12">[[TODO: If we have the window endpoint, do we still need to separate "info" and "assertions"?]]<a href="#section-8-12" class="pilcrow">¶</a></p>
+<p id="section-8-11">[[TODO: Once a batch has expired, do we allow a CA to stop publishing it? The transparency service can already log it for as long, or as little, as it wishes. We effectively have CT log temporal sharding built into the system. #2 ]]<a href="#section-8-11" class="pilcrow">¶</a></p>
+<p id="section-8-12">[[TODO: If we have the window endpoint, do we still need to separate "info" and "assertions"? #12 ]]<a href="#section-8-12" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="acme-extensions">
@@ -2182,7 +2182,7 @@ Otherwise, set <code>hash</code> to the output of <code>HashNode(hash, v, i + 1,
       <h2 id="name-acme-extensions">
 <a href="#section-9" class="section-number selfRef">9. </a><a href="#name-acme-extensions" class="section-name selfRef">ACME Extensions</a>
       </h2>
-<p id="section-9-1">[[TODO: This section hasn't been written yet. Instead, what follows is an informal sketch and design discussion.]]<a href="#section-9-1" class="pilcrow">¶</a></p>
+<p id="section-9-1">[[TODO: This section hasn't been written yet. Instead, what follows is an informal sketch and design discussion. #13 ]]<a href="#section-9-1" class="pilcrow">¶</a></p>
 <p id="section-9-2">See <a href="#agility" class="auto internal xref">Section 11.4</a> for the overall model this should target.<a href="#section-9-2" class="pilcrow">¶</a></p>
 <p id="section-9-3">Define ACME <span>[<a href="#RFC8555" class="cite xref">RFC8555</a>]</span> extensions for requesting these. We probably need to add a new field in the Order object (<span><a href="https://rfc-editor.org/rfc/rfc8555#section-9.7.2" class="relref">Section 9.7.2</a> of [<a href="#RFC8555" class="cite xref">RFC8555</a>]</span> to request this. Also a new MIME type for the thing being fetched <span><a href="https://rfc-editor.org/rfc/rfc8555#section-7.4.2" class="relref">Section 7.4.2</a> of [<a href="#RFC8555" class="cite xref">RFC8555</a>]</span>. This format should capture additional metadata per <a href="#trust-anchor-negotiation" class="auto internal xref">Section 6.3</a>.<a href="#section-9-3" class="pilcrow">¶</a></p>
 <p id="section-9-4">Otherwise, the long issuance time is already modeled by the allowance for the "processing" state taking a while. The ACME server should use the Retry-After header so the subscriber knows when to query again.<a href="#section-9-4" class="pilcrow">¶</a></p>
@@ -2209,7 +2209,7 @@ enum { tls(0), (2^16-1) } SubjectType;
 struct {
     SignatureScheme signature;
     opaque public_key&lt;1..2^24-1&gt;;
-    /* TODO: Should there be an extension list? */
+    /* TODO: Should there be an extension list? #38 */
 } TLSSubjectInfo;
 </pre><a href="#section-10.1-2" class="pilcrow">¶</a>
 </div>
@@ -2233,7 +2233,7 @@ struct {
         <dd class="break"></dd>
 </dl>
 <p id="section-10.1-6">This document does not define the public key format for other algorithms. In order for a SignatureScheme to be usable with TLSSubjectInfo, this format must be defined in a corresponding document.<a href="#section-10.1-6" class="pilcrow">¶</a></p>
-<p id="section-10.1-7">[[TODO: If other schemes get defined before this document is done, add them here. After that, it's on the other schemes to do it.]]<a href="#section-10.1-7" class="pilcrow">¶</a></p>
+<p id="section-10.1-7">[[TODO: If other schemes get defined before this document is done, add them here. After that, it's on the other schemes to do it. #39 ]]<a href="#section-10.1-7" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="tls-certificate-type">
@@ -2241,9 +2241,9 @@ struct {
         <h3 id="name-the-bikeshed-certificate-ty">
 <a href="#section-10.2" class="section-number selfRef">10.2. </a><a href="#name-the-bikeshed-certificate-ty" class="section-name selfRef">The Bikeshed Certificate Type</a>
         </h3>
-<p id="section-10.2-1">[[TODO: Bikeshed is a placeholder name until someone comes up with a better one.]]<a href="#section-10.2-1" class="pilcrow">¶</a></p>
+<p id="section-10.2-1">[[TODO: Bikeshed is a placeholder name until someone comes up with a better one. #15]]<a href="#section-10.2-1" class="pilcrow">¶</a></p>
 <p id="section-10.2-2">This section defines the <code>Bikeshed</code> TLS certificate type, which may be negotiated with the <code>client_certificate_type</code>, <code>server_certificate_type</code> <span>[<a href="#RFC7250" class="cite xref">RFC7250</a>]</span>, or <code>cert_type</code> <span>[<a href="#RFC6091" class="cite xref">RFC6091</a>]</span> extensions. It can only be negotiated with TLS 1.3 or later. Servers MUST NOT negotiate it in TLS 1.2 or below. If the client receives a ServerHello that negotiates it in TLS 1.2 or below, it MUST abort the connection with an <code>illegal_parameter</code> alert.<a href="#section-10.2-2" class="pilcrow">¶</a></p>
-<p id="section-10.2-3">[[TODO: None of these three extensions is quite right for client certificates because the negotiation isn't symmetric. See discussion in <a href="#cert-type-problems" class="auto internal xref">Section 10.4</a>. We may need to define a third one.]]<a href="#section-10.2-3" class="pilcrow">¶</a></p>
+<p id="section-10.2-3">[[TODO: None of these three extensions is quite right for client certificates because the negotiation isn't symmetric. See discussion in <a href="#cert-type-problems" class="auto internal xref">Section 10.4</a>. We may need to define a third one. #18]]<a href="#section-10.2-3" class="pilcrow">¶</a></p>
 <p id="section-10.2-4">When negotiated, the Certificate message MUST contain a single CertificateEntry structure.
 CertificateEntry is updated as follows:<a href="#section-10.2-4" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-10.2-5">
@@ -2279,7 +2279,7 @@ struct {
         </ul>
 <p id="section-10.2-8">The second modification differs from <span>[<a href="#RFC8446" class="cite xref">RFC8446</a>]</span>. Where <span>[<a href="#RFC8446" class="cite xref">RFC8446</a>]</span> allowed an id-rsaEncryption key to sign both <code>rsa_pss_rsae_sha256</code> and <code>rsa_pss_rsae_sha384</code>, TLSSubjectInfo keys are specific to a single algorithm. Future documents MAY relax this restriction for a new SignatureScheme, provided it was designed to be used concurrently with the value in TLSSubjectInfo. In particular, the underlying signature algorithm MUST match, and there MUST be appropriate domain separation between the two modes. For example, <span>[<a href="#I-D.draft-ietf-tls-batch-signing" class="cite xref">I-D.draft-ietf-tls-batch-signing</a>]</span> defines new SignatureSchemes, but the same keypair can be safely used with one of the new values and the corresponding base SignatureScheme.<a href="#section-10.2-8" class="pilcrow">¶</a></p>
 <p id="section-10.2-9">If this certificate type is used for either the client or server certificate, the ALPN <span>[<a href="#RFC7301" class="cite xref">RFC7301</a>]</span> extension MUST be negotiated. If no application protocol is selected, endpoints MUST close the connection with a <code>no_application_protocol</code> alert.<a href="#section-10.2-9" class="pilcrow">¶</a></p>
-<p id="section-10.2-10">[[TODO: Suppose we wanted to introduce a second SubjectType for TLS, either to add new fields or capture a new kind of key. That would need to be negotiated. We could use another extension, but defining a new certificate type seems most natural. That suggests this certificate type isn't about negotiating BikeshedCertificate in general, but specifically SubjectType.tls and TLSSubjectInfo. So perhaps the certificate type should be TLSSubjectInfo or BikeshedTLS.]]<a href="#section-10.2-10" class="pilcrow">¶</a></p>
+<p id="section-10.2-10">[[TODO: Suppose we wanted to introduce a second SubjectType for TLS, either to add new fields or capture a new kind of key. That would need to be negotiated. We could use another extension, but defining a new certificate type seems most natural. That suggests this certificate type isn't about negotiating BikeshedCertificate in general, but specifically SubjectType.tls and TLSSubjectInfo. So perhaps the certificate type should be TLSSubjectInfo or BikeshedTLS. #7 ]]<a href="#section-10.2-10" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="tls-trust-anchors-extension">
@@ -2306,7 +2306,7 @@ struct {
         <h3 id="name-certificate-type-negotiatio">
 <a href="#section-10.4" class="section-number selfRef">10.4. </a><a href="#name-certificate-type-negotiatio" class="section-name selfRef">Certificate Type Negotiation</a>
         </h3>
-<p id="section-10.4-1">[[TODO: We may need a new certificate types extension, either in this document or a separate one. For now, this section just informally describes the problem.]]<a href="#section-10.4-1" class="pilcrow">¶</a></p>
+<p id="section-10.4-1">[[TODO: We may need a new certificate types extension, either in this document or a separate one. For now, this section just informally describes the problem. #18 ]]<a href="#section-10.4-1" class="pilcrow">¶</a></p>
 <p id="section-10.4-2">The server certificate type is negotiated as follows:<a href="#section-10.4-2" class="pilcrow">¶</a></p>
 <ul class="normal">
 <li class="normal" id="section-10.4-3.1">The client sends <code>server_certificate_type</code> in ClientHello with accepted certificate types.<a href="#section-10.4-3.1" class="pilcrow">¶</a>
@@ -2496,7 +2496,7 @@ struct {
         </h3>
 <p id="section-13.3-1">Merkle Tree certificates avoid sending an additional signature for OCSP responses by using a short-lived certificates model. Per <a href="#parameters" class="auto internal xref">Section 5.1</a>,  Merkle Tree CA's certificate lifetime MUST be set such that certificate expiration replaces revocation. Existing revocation mechanisms like CRLs and OCSP are themselves short-lived, signed messages, so a low enough certificate lifetime provides equivalent revocation capability.<a href="#section-13.3-1" class="pilcrow">¶</a></p>
 <p id="section-13.3-2">Relying parties with additional sources of revocation such as <span>[<a href="#CRLite" class="cite xref">CRLite</a>]</span> or <span>[<a href="#CRLSets" class="cite xref">CRLSets</a>]</span> SHOULD provide a mechanism to express revoked assertions in such systems, in order to opportunistically revoke assertions in up-to-date relying parties sooner. It is expected that, in most deployments, relying parties can fetch this revocation data and Merkle Tree CA windows from the same service.<a href="#section-13.3-2" class="pilcrow">¶</a></p>
-<p id="section-13.3-3">[[TODO: Is it worth defining an API for Merkle Tree CAs to publish a revocation list? That would allow automatically populating CRLite and CRLSets. Maybe that's a separate document.]]<a href="#section-13.3-3" class="pilcrow">¶</a></p>
+<p id="section-13.3-3">[[TODO: Is it worth defining an API for Merkle Tree CAs to publish a revocation list? That would allow automatically populating CRLite and CRLSets. Maybe that's a separate document. #41]]<a href="#section-13.3-3" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="transparency">
@@ -2602,7 +2602,7 @@ struct {
           </tr>
         </tbody>
       </table>
-<p id="section-14-5">TODO: Define registries for the enums introduced in this document:<a href="#section-14-5" class="pilcrow">¶</a></p>
+<p id="section-14-5">[[ TODO: Define registries for the enums introduced in this document. #42]]<a href="#section-14-5" class="pilcrow">¶</a></p>
 <ul class="normal">
 <li class="normal" id="section-14-6.1">SubjectType<a href="#section-14-6.1" class="pilcrow">¶</a>
 </li>
@@ -2747,7 +2747,7 @@ struct {
 <dd class="break"></dd>
 <dt id="I-D.draft-ietf-tls-esni">[I-D.draft-ietf-tls-esni]</dt>
         <dd>
-<span class="refAuthor">Rescorla, E.</span>, <span class="refAuthor">Oku, K.</span>, <span class="refAuthor">Sullivan, N.</span>, and <span class="refAuthor">C. A. Wood</span>, <span class="refTitle">"TLS Encrypted Client Hello"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-ietf-tls-esni-15</span>, <time datetime="2022-10-03" class="refDate">3 October 2022</time>, <span>&lt;<a href="https://datatracker.ietf.org/doc/html/draft-ietf-tls-esni-15">https://datatracker.ietf.org/doc/html/draft-ietf-tls-esni-15</a>&gt;</span>. </dd>
+<span class="refAuthor">Rescorla, E.</span>, <span class="refAuthor">Oku, K.</span>, <span class="refAuthor">Sullivan, N.</span>, and <span class="refAuthor">C. A. Wood</span>, <span class="refTitle">"TLS Encrypted Client Hello"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-ietf-tls-esni-16</span>, <time datetime="2023-04-06" class="refDate">6 April 2023</time>, <span>&lt;<a href="https://datatracker.ietf.org/doc/html/draft-ietf-tls-esni-16">https://datatracker.ietf.org/doc/html/draft-ietf-tls-esni-16</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 <dt id="LetsEncrypt">[LetsEncrypt]</dt>
         <dd>
