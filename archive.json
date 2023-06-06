@@ -1,6 +1,6 @@
 {
   "magic": "E!vIA5L86J2I",
-  "timestamp": "2023-06-04T02:09:57.543681+00:00",
+  "timestamp": "2023-06-06T01:55:57.357067+00:00",
   "repo": "davidben/merkle-tree-certs",
   "labels": [
     {
@@ -86,15 +86,15 @@
       "labels": [],
       "body": "As currently written, neither CAs nor the transparency service are allowed to stop serving long-outdated batches. Should we relax this? Some nuisances:\r\n\r\n* Storage windows should be much larger than validity windows, to allow for RP clock skew\r\n* If the CA's storage window is smaller than the TS's storage window, it is possible that a transparency service will fail to log something if it's really, _really_ behind. That said, it would need to be behind by more than the CA's storage window and if that's, say, a year, that's probably fine.\r\n* A bigger issue is that if the TS spins up after the CA does, it can't bootstrap itself with data before the CA's storage window (unless it pulls it from another mirror)",
       "createdAt": "2023-03-13T15:55:05Z",
-      "updatedAt": "2023-03-19T02:40:57Z",
+      "updatedAt": "2023-06-05T12:11:59Z",
       "closedAt": null,
       "comments": [
         {
           "author": "bwesterb",
           "authorAssociation": "COLLABORATOR",
-          "body": "> Storage windows should be much larger than validity windows, to allow for RP clock skew\r\n\r\nFor the common case, where the roots are side-loaded to the RP, the transparency service can also side-load an approximate time. The latest batch you got is an estimate of the time!\r\n\r\n> if it's really, really behind\r\n\r\nIf a transparency service is that much behind, then it can't perform its main function: allowing clients to authenticate. (Transparency service is perhaps not the best name.)\r\n\r\nIf everything functions normally, I'd say that the CAs would really only need to store batches for another day or so. On the other hand, when things go wrong, it's nice to have some time to figure things out. We shouldn't go overboard here: it's harder for the CAs to serve a year's worth of batches, than three weeks.\r\n\r\nIndeed, the size of assertions is dominated by the size of the public keys. If they're all RSA-2048, we're looking at roughly 1.5GB per day. Serving 32GB for three weeks is much easier than 560GB. If they're all Dilithium3, then we're looking at 250GB for three weeks and 4.2TB for a year. See also #6 .\r\n\r\nI want to try running this as easy as possible, so at the moment I'd lean towards a storage window of 4 weeks.",
+          "body": "> Storage windows should be much larger than validity windows, to allow for RP clock skew\r\n\r\nFor the common case, where the roots are side-loaded to the RP, the transparency service can also side-load an approximate time. The latest batch you got is an estimate of the time!\r\n\r\n> if it's really, really behind\r\n\r\nIf a transparency service is that much behind, then it can't perform its main function: allowing clients to authenticate. (Transparency service is perhaps not the best name.)\r\n\r\nIf everything functions normally, I'd say that the CAs would really only need to store batches for another day or so. On the other hand, when things go wrong, it's nice to have some time to figure things out. We shouldn't go overboard here: it's harder for the CAs to serve a year's worth of batches, than three weeks.\r\n\r\nIndeed, the size of assertions is dominated by the size of the public keys. If they're all RSA-2048, we're looking at roughly 1.5GB per day. Serving 32GB for three weeks is much easier than 560GB. If they're all Dilithium3, then we're looking at 250GB for three weeks and 4.2TB for a year. See also #6 .\r\n\r\nI want to try making running this as easy as possible, so at the moment I'd lean towards a storage window of 4 weeks.",
           "createdAt": "2023-03-18T10:05:08Z",
-          "updatedAt": "2023-03-18T10:36:50Z"
+          "updatedAt": "2023-06-05T12:11:59Z"
         },
         {
           "author": "davidben",
@@ -153,7 +153,7 @@
     {
       "number": 5,
       "id": "I_kwDOJIBkVc5hJ4Q1",
-      "title": "Clarify that unparsable signatures are misissuance",
+      "title": "Clarify that unparsable signing inputs are still misissuance",
       "url": "https://github.com/davidben/merkle-tree-certs/issues/5",
       "state": "OPEN",
       "author": "davidben",
@@ -162,7 +162,7 @@
       "labels": [],
       "body": "We currently say:\r\n\r\n> If the CA's private key signs an input that can be interpreted as a LabeledWindow structure, the CA is considered to have certified every assertion contained in every value in the `tree_heads` list, with expiry determined by `batch_number`, the position of the tree head in the list, and the CA's input parameters as described in {{parameters}}.\r\n\r\nBut this leaves open what if the CA's private key signs an input that can't be parsed. Buggy parsers in the RP are bad, but they shouldn't be instant security bugs. To fix that, we should say:\r\n\r\n* If the CA's private key signs *any* input beginning with `Merkle Tree Certificate Window\\0`, it is in scope for this document. If it cannot be parsed as a LabeledWindow, or if the hashes were invalid, this is misissuance.\r\n* Signing other labels is, a priori, also misissuance, though future protocol extensions MAY define other label prefixes that do have meaning. I.e., if we want to have the CA sign other messages with the same key, we may define a different label for it, but the CA shouldn't be allowed to just randomly sign stuff that seems like fun.",
       "createdAt": "2023-03-17T22:15:47Z",
-      "updatedAt": "2023-03-20T15:51:14Z",
+      "updatedAt": "2023-06-05T17:26:21Z",
       "closedAt": null,
       "comments": [
         {
@@ -171,6 +171,20 @@
           "body": "It's implied, but we should probably also spell it out explicitly: it doesn't matter if the CA ever served the signature over the HTTP interface. If it generated such a signature, it issued it and is responsible for whatever it signed.",
           "createdAt": "2023-03-20T15:51:13Z",
           "updatedAt": "2023-03-20T15:51:13Z"
+        },
+        {
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "body": "There is another case: if a signature is served, which itself does not verify, then we should not count it as a misissuance. The signature would not be trusted anyway (as it doesn't verify), and this gives some robustness against some bitflips. #26 ",
+          "createdAt": "2023-06-05T10:41:12Z",
+          "updatedAt": "2023-06-05T10:41:12Z"
+        },
+        {
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "body": "Oh yeah, there's \"I cannot parse the signature\" and \"you signed a thing that does not parse but has the right context string\". I meant the latter. I'll go rename the issue to be clearer.\r\n\r\nAgreed that if the signature doesn't verify, it's not misissuance. The system has misbehaved, but I think that can be thought of as a generalized outage. Specifically, it doesn't cause a durable security problem the way having a bad signature in the world does.",
+          "createdAt": "2023-06-05T17:26:00Z",
+          "updatedAt": "2023-06-05T17:26:00Z"
         }
       ]
     },
@@ -186,7 +200,7 @@
       "labels": [],
       "body": "The size of assertions is dominated by the public key. Classical public keys are small: ~32/64 bytes for ECC, ~256/512 bytes for RSA. Post-quantum public keys are larger. 1312/1953B for Dilithium2/3, 897B for Falcon512. There are also some unbalanced (smaller sigs, but larger public keys) schemes on the horizon with even larger public keys: 5kB for Mayo_2, \u2265500kB for UOV.\r\n\r\nInstead of storing the public key in the assertion, we could store `H(public key)` [1]. The relying party would still need to send the public key. We could include it in the bikeshed certificate.\r\n\r\nThe downsides are:\r\n\r\n1. It slightly complicates the protocol.\r\n2. We send 32 bytes extra in the TLS connection.\r\n3. We can't check for weak public keys.\r\n\r\n[1] We might actually want to do `H(domain sep || public key || claim_type || claims)`",
       "createdAt": "2023-03-18T10:31:31Z",
-      "updatedAt": "2023-04-01T01:28:39Z",
+      "updatedAt": "2023-06-05T11:49:19Z",
       "closedAt": null,
       "comments": [
         {
@@ -216,6 +230,13 @@
           "body": "Oh yeah the CA-to-TS format definitely needs to include the hash. And I suppose that's the main nuisance here. The ideal format from CA to TS and subscriber to RP now differ and we need to keep them all straight, or pay some costs.",
           "createdAt": "2023-04-01T01:28:38Z",
           "updatedAt": "2023-04-01T01:28:38Z"
+        },
+        {
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "body": "We can't leave out the hash from the assertion as served by the CA to the TS, but we could leave out the hash from the. BikeshedCertificate. That would complicate its definition a bit: we'd need two different Assertion structs.",
+          "createdAt": "2023-06-05T11:49:19Z",
+          "updatedAt": "2023-06-05T11:49:19Z"
         }
       ]
     },
@@ -334,9 +355,17 @@
       "labels": [],
       "body": "Filing this to capture the TODO left in the doc",
       "createdAt": "2023-03-22T20:58:20Z",
-      "updatedAt": "2023-03-22T20:58:20Z",
+      "updatedAt": "2023-06-05T12:00:07Z",
       "closedAt": null,
-      "comments": []
+      "comments": [
+        {
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "body": "> [[TODO: This section hasn't been written yet. For now, this is just an informal sketch. The real text will need to define request/response formats more precisely, with MIME types, etc. ]]\r\n\r\n> [[TODO: If we have the window endpoint, do we still need to separate \"info\" and \"assertions\"?]]\r\n\r\n",
+          "createdAt": "2023-06-05T12:00:07Z",
+          "updatedAt": "2023-06-05T12:00:07Z"
+        }
+      ]
     },
     {
       "number": 13,
@@ -531,7 +560,7 @@
     {
       "number": 24,
       "id": "I_kwDOJIBkVc5iy14i",
-      "title": "TA negotiation useful for draft-kampanakis-tls-scas",
+      "title": "TA negotiation useful for draft-kampanakis-tls-scas / draft-jackson-tls-cert-abridge",
       "url": "https://github.com/davidben/merkle-tree-certs/issues/24",
       "state": "OPEN",
       "author": "bwesterb",
@@ -540,9 +569,17 @@
       "labels": [],
       "body": "The trust anchor negotiation, and the to-be-written mechanism of provisioning TLS servers with opaque TA->proof blobs, we propose would be useful for [draft-kampanakis-tls-scas](https://datatracker.ietf.org/doc/draft-kampanakis-tls-scas-latest/) as well. We could allocate a `chainless-x509-cert` trust anchor type, whose identifiers would be something akin `ccadb-20230406`, with as proof a X509 certificate whose intermediates are included in ccadb at that date. The ACME client could check CCADB for the intermediates, and if they're included, the chainless trust anchor.",
       "createdAt": "2023-04-06T14:06:28Z",
-      "updatedAt": "2023-04-06T14:06:28Z",
+      "updatedAt": "2023-06-05T12:43:25Z",
       "closedAt": null,
-      "comments": []
+      "comments": [
+        {
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "body": "Same for [draft-jack son-tls-cert-abridge](https://github.com/dennisjackson/draft-jackson-tls-cert-abridge).",
+          "createdAt": "2023-06-05T12:43:25Z",
+          "updatedAt": "2023-06-05T12:43:25Z"
+        }
+      ]
     },
     {
       "number": 25,
@@ -602,9 +639,9 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [],
-      "body": "In `-00` we write\r\n\r\n```\r\npublic_key: The public half of a signing keypair. The corresponding private key, private_key, is known only to the CA.\r\n```\r\n\r\nThis needs elaboration. We could pick one post-quantum signature scheme, as we have picked SHA256 as hash. Say Dilithium2. It's not unconceivable that we'll want to migrate to a new signature scheme. Perhaps because Dilithium2's security is weaker than expected, but more likely because a significantly better post-quantum signature scheme has stabilised.\r\n\r\nProofType should afford enough flexibility for this.\r\n\r\nAlternatively, we can simply use a `TLSSubjectInfo` structure for the CA public key.\r\n\r\nA different idea, is to use a stateful hash based signature such as LMS or XMSS. There is no need to keep state: instead we can use the `n`th one-time-signature for the `n`th window. Clients can check whether the right OTS is used. Then if the CA accidentally signs and published the same window twice, then the private key is only compromised for that window, which will be ignored anyway by TSs if such a thing happens. With `n=16`, `h=20` and `w=16`, a key pair will last 119 years, signatures will be 880 bytes, verification will take 1,181 SHA2 hashes and keygen 1 billion SHA2 hashes. The upside is that this is definitely post-quantum secure. But this is all rather more complicated to implement than a plain signature, so I suppose we're better of sticking with Dilithium for now and accept we might have to change at some point. (This would complicate signing revocation lists.)\r\n",
+      "body": "In `-00` we write\r\n\r\n```\r\npublic_key: The public half of a signing keypair. The corresponding private key, private_key, is known only to the CA.\r\n```\r\n\r\nThis needs elaboration. We could pick one post-quantum signature scheme, as we have picked SHA256 as hash. Say Dilithium2. It's not unconceivable that we'll want to migrate to a new signature scheme. Perhaps because Dilithium2's security is weaker than expected, but more likely because a significantly better post-quantum signature scheme has stabilised.\r\n\r\nProofType should afford enough flexibility for this.\r\n\r\nAlternatively, we can simply use a `TLSSubjectInfo`-like structure for the CA public key.\r\n\r\nA different idea, is to use a stateful hash based signature such as LMS or XMSS. There is no need to keep state: instead we can use the `n`th one-time-signature for the `n`th window. Clients can check whether the right OTS is used. Then if the CA accidentally signs and published the same window twice, then the private key is only compromised for that window, which will be ignored anyway by TSs if such a thing happens. With `n=16`, `h=20` and `w=16`, a key pair will last 119 years, signatures will be 880 bytes, verification will take 1,181 SHA2 hashes and keygen 1 billion SHA2 hashes. The upside is that this is definitely post-quantum secure. But this is all rather more complicated to implement than a plain signature, so I suppose we're better of sticking with Dilithium for now and accept we might have to change at some point. (This would complicate signing revocation lists.)\r\n",
       "createdAt": "2023-06-02T14:19:10Z",
-      "updatedAt": "2023-06-02T17:26:45Z",
+      "updatedAt": "2023-06-05T12:45:43Z",
       "closedAt": null,
       "comments": [
         {
@@ -642,9 +679,17 @@
       "labels": [],
       "body": "Feedback from Ilari Liusvaara on the list:\r\n\r\n> - I think LabeledWindow should add 64 spaces in front, so it\r\n>  reuses the TLS 1.3 signature format.\r\n>\r\n>  This reduces risks of cross-protocol attack if the key gets\r\n>  reused anyway (despite there being MUST NOT requirement).\r\n\r\nI'm slightly torn on this, though I don't feel very strongly either way. (Past Davids have gone both directions on this.)\r\n\r\nOn one hand, it costs very little and reduces cross-protocol attacks with TLS 1.2 if you reuse keys. Even though we explicitly told you not to reuse those keys.\r\n\r\nOn the other hand, it only reduces attacks with TLS 1.2, and this key was already explicitly not meant to be a TLS key. Where do such things end? Should every new protocol forever guard against potential reuse with TLS 1.2, even when it (like this one) was not designed to be used with TLS? Should we guard against reuse with other protocols too? Context string constructions aren't standard (hash-to-curve does a suffix instead of a prefix), so the real defense is key separation. Maybe we should _finally_ just get better at key separation.",
       "createdAt": "2023-06-02T22:39:26Z",
-      "updatedAt": "2023-06-02T22:39:26Z",
+      "updatedAt": "2023-06-05T10:16:05Z",
       "closedAt": null,
-      "comments": []
+      "comments": [
+        {
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "body": "I think it's good practice to add some context, which we already do, so that we can use the Merkle CA's key to sign other things besides the window. This also helps against accidental cross-protocol attacks. (Unfortunately we all haven't agreed on the standard way to do this. It'd be nice if every signature scheme would have a context string as input, but that's a separate discussion.)\r\n\r\nI don't think it's worthwhile to add the 64 spaces in front, if we mandate separate keys. We wouldn't just have to deal with TLS, but every other protocol where the same key can be used as well.",
+          "createdAt": "2023-06-05T10:16:05Z",
+          "updatedAt": "2023-06-05T10:16:05Z"
+        }
+      ]
     },
     {
       "number": 31,
@@ -677,6 +722,150 @@
       "body": "Feedback from Ilari Liusvaara on the list:\r\n\r\n> - The root hash being dependent on issuer and batch number iff there\r\n>  are multiple assertions looks very odd.\r\n>\r\n>  Empty assertion list might be special. But this also happens for\r\n>  one assertion.\r\n\r\nIt is a little odd that HashNode takes all these extra distinguishers, but HashAssertion doesn't. @bwesterb, you suggested doing something like this to align with something that SPHINCS+ was doing, right? Should we have it on both?",
       "createdAt": "2023-06-02T23:29:22Z",
       "updatedAt": "2023-06-02T23:29:22Z",
+      "closedAt": null,
+      "comments": []
+    },
+    {
+      "number": 35,
+      "id": "I_kwDOJIBkVc5nzu6G",
+      "title": "Should claims include ports?",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/35",
+      "state": "OPEN",
+      "author": "bwesterb",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "> [[TODO: For now, the claims below just transcribe the X.509 GeneralName structure. Should these be origins instead? For HTTPS, it's a pity to not capture the scheme and port. We do mandate ALPN in {{tls-certificate-type}}, so cross-protocol attacks are mitigated, but it's unfortunate that subscribers cannot properly separate their HTTPS vs FTPS keys, or their port 443 vs port 444 keys. One option here is to have HTTPS claims instead, and then other protocols can have FTPS claims, etc.]]",
+      "createdAt": "2023-06-05T11:55:14Z",
+      "updatedAt": "2023-06-05T11:55:24Z",
+      "closedAt": null,
+      "comments": []
+    },
+    {
+      "number": 36,
+      "id": "I_kwDOJIBkVc5nzvXU",
+      "title": "Multiple signing keys?",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/36",
+      "state": "OPEN",
+      "author": "bwesterb",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "> [[TODO: The signing key case is interesting. A CA could actually maintain a single stream of Merkle Trees, but then sign everything with multiple keys to support rotation. The CA -> Subscriber -> RP flow does not depend on the signature, only the CA -> Transparency Service -> RP flow. The document is not currently arranged to capture this, but it probably should be. We probably need to decouple the signing half and the Merkle Tree half slightly.]]",
+      "createdAt": "2023-06-05T11:56:36Z",
+      "updatedAt": "2023-06-05T11:56:36Z",
+      "closedAt": null,
+      "comments": []
+    },
+    {
+      "number": 37,
+      "id": "I_kwDOJIBkVc5nzwlR",
+      "title": "Downtime lenience",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/37",
+      "state": "OPEN",
+      "author": "bwesterb",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "> [[TODO: If the mirror gets far behind, if the CA just stops publishing for a while, it may suddenly have to catch up on many batches. Should we allow the mirror to catch up to the latest window and skip the intervening batches? The intervening batches are guaranteed to have been expired]] ",
+      "createdAt": "2023-06-05T11:58:59Z",
+      "updatedAt": "2023-06-05T14:15:27Z",
+      "closedAt": null,
+      "comments": [
+        {
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "body": "I suspect the is the same as #2, or at least can be. Unless we want to have both a storage window and allow gaps within the storage window, but that's probably a bit much.\r\n\r\nIf we say the mirrors can't have gaps, then this equivalent to saying that if you fail to update for a whole storage window, you can just start from scratch and only catch up to whatever range you're expected to maintain in the steady state. Basically as if you were starting over as a new mirror.",
+          "createdAt": "2023-06-05T14:15:26Z",
+          "updatedAt": "2023-06-05T14:15:26Z"
+        }
+      ]
+    },
+    {
+      "number": 38,
+      "id": "I_kwDOJIBkVc5nzyT8",
+      "title": "Should TLSSubjectInfo have an extension list?",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/38",
+      "state": "OPEN",
+      "author": "bwesterb",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "",
+      "createdAt": "2023-06-05T12:02:28Z",
+      "updatedAt": "2023-06-05T12:02:28Z",
+      "closedAt": null,
+      "comments": []
+    },
+    {
+      "number": 39,
+      "id": "I_kwDOJIBkVc5nzy8R",
+      "title": "Include new post-quantum TLS signature schemes",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/39",
+      "state": "OPEN",
+      "author": "bwesterb",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "> [[TODO: If other schemes get defined before this document is done, add them here. After that, it's on the other schemes to do it.]]",
+      "createdAt": "2023-06-05T12:03:40Z",
+      "updatedAt": "2023-06-05T12:03:40Z",
+      "closedAt": null,
+      "comments": []
+    },
+    {
+      "number": 40,
+      "id": "I_kwDOJIBkVc5nzz99",
+      "title": "[duplicate] Client certificates",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/40",
+      "state": "CLOSED",
+      "author": "bwesterb",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "> This section defines the `Bikeshed` TLS certificate type, which may be negotiated with the `client_certificate_type`, `server_certificate_type` {{!RFC7250}}, or `cert_type` {{!RFC6091}} extensions. It can only be negotiated with TLS 1.3 or later. Servers MUST NOT negotiate it in TLS 1.2 or below. If the client receives a ServerHello that negotiates it in TLS 1.2 or below, it MUST abort the connection with an `illegal_parameter` alert.\r\n>\r\n> [[TODO: None of these three extensions is quite right for client certificates because the negotiation isn't symmetric. See discussion in {{cert-type-problems}}. We may need to define a third one.]]\r\n",
+      "createdAt": "2023-06-05T12:05:39Z",
+      "updatedAt": "2023-06-05T12:48:04Z",
+      "closedAt": "2023-06-05T12:47:15Z",
+      "comments": [
+        {
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "body": "Duplicate of #18 ",
+          "createdAt": "2023-06-05T12:47:15Z",
+          "updatedAt": "2023-06-05T12:47:15Z"
+        }
+      ]
+    },
+    {
+      "number": 41,
+      "id": "I_kwDOJIBkVc5nz1He",
+      "title": "Revocation",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/41",
+      "state": "OPEN",
+      "author": "bwesterb",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "> [[TODO: Is it worth defining an API for Merkle Tree CAs to publish a revocation list? That would allow automatically populating CRLite and CRLSets. Maybe that's a separate document.]] ",
+      "createdAt": "2023-06-05T12:08:06Z",
+      "updatedAt": "2023-06-05T12:08:06Z",
+      "closedAt": null,
+      "comments": []
+    },
+    {
+      "number": 42,
+      "id": "I_kwDOJIBkVc5nz1P_",
+      "title": "IANA considerations",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/42",
+      "state": "OPEN",
+      "author": "bwesterb",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "",
+      "createdAt": "2023-06-05T12:08:24Z",
+      "updatedAt": "2023-06-05T12:08:24Z",
       "closedAt": null,
       "comments": []
     }
@@ -1055,18 +1244,33 @@
       "labels": [],
       "body": "Feedback from Ilari Liusvaara on the list. I picked the lengths mostly arbitrarily. This shaves a few bytes, though it does introduce some length limits over X.509 in TLS today. (TLS uses 2^24-1 for the overall certificate structure. Within a certificate, DER gives variable-length lengths.)",
       "createdAt": "2023-06-02T22:33:29Z",
-      "updatedAt": "2023-06-03T00:10:54Z",
+      "updatedAt": "2023-06-05T21:45:48Z",
       "baseRepository": "davidben/merkle-tree-certs",
       "baseRefName": "main",
-      "baseRefOid": "94daadcb1645ad814ef3dea344a015886bbec655",
+      "baseRefOid": "25f9893e67de075d9bd65725bd2df8bbf343f08c",
       "headRepository": "davidben/merkle-tree-certs",
       "headRefName": "trim-lengths-2",
-      "headRefOid": "32fd2da1654bc4e88df26db5617731019910a6e6",
+      "headRefOid": "89db77c25e7892fcd02dab8725ec6011f27d2354",
       "closedAt": null,
       "mergedAt": null,
       "mergedBy": null,
       "mergeCommit": null,
-      "comments": [],
+      "comments": [
+        {
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "body": "One thing to ponder: if a ProofType combines X.509-style delegation (so multiple signatures) with one of the really, really large signature schemes, will 64KiB be too tight? I can't imagine actually being happy going that high, but maybe someone wants that? @bwesterb, you probably are better to judge that than me as I've been paying less attention to the sizes available.",
+          "createdAt": "2023-06-05T19:29:04Z",
+          "updatedAt": "2023-06-05T19:29:04Z"
+        },
+        {
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "body": "> I can't imagine actually being happy going that high\r\n\r\nThere are signature schemes with really big public keys, but you wouldn't use those unless you don't have to send the public keys all the time.\r\n\r\nAt 128 bits security, none of the reasonable schemes will hit the limit. Even SPHINCS+ will not. It has two variants, one optimised for size (~8kB sig, 32B pk) and one for signing speed (~17kB sig, 32B pk).",
+          "createdAt": "2023-06-05T21:27:16Z",
+          "updatedAt": "2023-06-05T21:27:16Z"
+        }
+      ],
       "reviews": [
         {
           "id": "PRR_kwDOJIBkVc5W8QN9",
@@ -1080,6 +1284,378 @@
           "createdAt": "2023-06-03T00:10:54Z",
           "updatedAt": "2023-06-03T00:10:54Z",
           "comments": []
+        }
+      ]
+    },
+    {
+      "number": 33,
+      "id": "PR_kwDOJIBkVc5SLddO",
+      "title": "Properly separate hashes in Merkle tree",
+      "url": "https://github.com/davidben/merkle-tree-certs/pull/33",
+      "state": "OPEN",
+      "author": "bwesterb",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "Fixes #32\r\n\r\nAlso adds change log.",
+      "createdAt": "2023-06-05T10:37:29Z",
+      "updatedAt": "2023-06-05T10:37:29Z",
+      "baseRepository": "davidben/merkle-tree-certs",
+      "baseRefName": "main",
+      "baseRefOid": "94daadcb1645ad814ef3dea344a015886bbec655",
+      "headRepository": "bwesterb/merkle-tree-certs",
+      "headRefName": "issue-32",
+      "headRefOid": "6e56087e8d594e9804c59606bbd883ac187ef115",
+      "closedAt": null,
+      "mergedAt": null,
+      "mergedBy": null,
+      "mergeCommit": null,
+      "comments": [],
+      "reviews": []
+    },
+    {
+      "number": 34,
+      "id": "PR_kwDOJIBkVc5SL3o_",
+      "title": "Only include hash of subject_info in Assertion",
+      "url": "https://github.com/davidben/merkle-tree-certs/pull/34",
+      "state": "OPEN",
+      "author": "bwesterb",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "Move subject_info itself to BikeshedCertificate.\r\n\r\nThis reduces the amount of data that needs to be served by CAs a lot, expecting large post-quantum public keys.\r\n\r\nOne downside is that it complicates the verification a bit: a verifier should not forget to check whether subject_info_hash matches subject_info.\r\n\r\nAlso, to keep verification simpler, we make subject_info less flexible: always expecting a hash in an assertion. We could go for a mix of hashed and unhashed subject info in the assertion, but I do not see an application yet.\r\n\r\nSee #6 ",
+      "createdAt": "2023-06-05T11:48:09Z",
+      "updatedAt": "2023-06-05T22:56:23Z",
+      "baseRepository": "davidben/merkle-tree-certs",
+      "baseRefName": "main",
+      "baseRefOid": "94daadcb1645ad814ef3dea344a015886bbec655",
+      "headRepository": "bwesterb/merkle-tree-certs",
+      "headRefName": "issue-6",
+      "headRefOid": "e86df57f07bf71e896ce78e36a1b668e79263b12",
+      "closedAt": null,
+      "mergedAt": null,
+      "mergedBy": null,
+      "mergeCommit": null,
+      "comments": [],
+      "reviews": [
+        {
+          "id": "PRR_kwDOJIBkVc5XMJDk",
+          "commit": {
+            "abbreviatedOid": "e86df57"
+          },
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-05T15:18:03Z",
+          "updatedAt": "2023-06-05T15:18:03Z",
+          "comments": [
+            {
+              "originalPosition": 5,
+              "body": "This is a little interesting with the current extensibility model (not to say that extensibility model is the right one!) because `hash` doesn't exist at this layer. I.e. imagine if we defined both `merkle_tree_sha256` and `merkle_tree_sha384`. Or `some_proof_type_without_hashes_at_all`. How would you know which hash to use? This gets extra fun when you imagine a subscriber that doesn't know about the proof type.\r\n\r\nI'd been envisioning `Assertion` becomes the thing that the subscriber understands and cares about, and the proof is the CA <-> RP communication that they're just proxying alone. You could imagine this starting life all the way at the issuance protocol too, all the way up to the CSR equivalent. (Today, CSRs, ACME newOrder requests, and certificates all carry this information in completely different forms.) The lifecycle could then be:\r\n\r\n1. The subscriber is configured to speak TLS in a certain way. It assembles the corresponding `Assertion` structure.\r\n2. Subscriber passes this `Assertion` to the CA. The CA checks this...\r\n    1. If the subscriber requests any claims it doesn't understand, return an error\r\n    2. For each claim, perform the appropriate validation.\r\n    3. (handwaiving, and I'm sure doesn't actually work for lots of reasons) Bonus points if that validation is tightly bound to the `Assertion` structure, which the subscriber can do easily because they assembled it. E.g. you could a `validation` proof type, where the proof is empty and the trust anchor is hash(assertion) (just for negotiation purposes). The subscriber's server's ability and willingness to make a TLS connection with certificate is then analogous to the tls-alpn-01.\r\n3. CA hands back a bunch of `BikeshedCertificates`. They all have the requested `Assertion` (subscriber checks this and raises an alert otherwise) but different proofs (subscriber doesn't care about the contents of this).\r\n\r\nObviously we don't actually need this flow, and I doubt it's _actually_ worth recasting all of ACME around this structure, but being able to do something like this was part of the motivation around the current structure.",
+              "createdAt": "2023-06-05T15:18:03Z",
+              "updatedAt": "2023-06-05T15:18:49Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOJIBkVc5XMRe5",
+          "commit": {
+            "abbreviatedOid": "e86df57"
+          },
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-05T15:32:20Z",
+          "updatedAt": "2023-06-05T15:32:21Z",
+          "comments": [
+            {
+              "originalPosition": 5,
+              "body": "I suppose, under this model (if we want to keep it!), we'd have the `Assertion` struct which is the general, unhashed one. But then the tree is computed over:\r\n\r\n```\r\nstruct {\r\n    SubjectType subject_type;\r\n    HashValueSHA256 subject_type_hash;\r\n    Claim claims<0..2^24-1>;\r\n} MerkleTreeAssertionSHA256;\r\n```",
+              "createdAt": "2023-06-05T15:32:20Z",
+              "updatedAt": "2023-06-05T15:32:21Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOJIBkVc5XPMqO",
+          "commit": {
+            "abbreviatedOid": "e86df57"
+          },
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-05T22:13:57Z",
+          "updatedAt": "2023-06-05T22:13:57Z",
+          "comments": [
+            {
+              "originalPosition": 5,
+              "body": "I like pulling out `Assertion` like this in the ACME flow.\r\n\r\n(Minor point: if I understand correctly, if we'd want to leave out the hash in the BikeshedCertificate, we'd have three different assertion structs: the one with the public key for the \"CSR\"; the one with the hash for the tree and CA to publish; and the one without the hash for the BikeshedCertificate.)\r\n\r\nOriginally I thought we could group almost everything we propose under MTC, except perhaps for the negotiation mechanism itself. But now it came into focus for me that you intend most of the structures to be reused by instances different from MTC. Perhaps we should name this more general system, and move the hash into it. Perhaps: `web-sha256` and have MTC be a certificate type of it `web-sha256/mtc`.",
+              "createdAt": "2023-06-05T22:13:57Z",
+              "updatedAt": "2023-06-05T22:13:57Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOJIBkVc5XPeao",
+          "commit": {
+            "abbreviatedOid": "e86df57"
+          },
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-05T22:46:20Z",
+          "updatedAt": "2023-06-05T22:46:21Z",
+          "comments": [
+            {
+              "originalPosition": 5,
+              "body": "Does the CSR one need the hash? I figured the hash would just be private to MTCs.",
+              "createdAt": "2023-06-05T22:46:20Z",
+              "updatedAt": "2023-06-05T22:46:21Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOJIBkVc5XPfbb",
+          "commit": {
+            "abbreviatedOid": "e86df57"
+          },
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-05T22:48:28Z",
+          "updatedAt": "2023-06-05T22:48:29Z",
+          "comments": [
+            {
+              "originalPosition": 5,
+              "body": "CSR would need the full public key for proof-of-possession.",
+              "createdAt": "2023-06-05T22:48:28Z",
+              "updatedAt": "2023-06-05T22:48:29Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOJIBkVc5XPf1F",
+          "commit": {
+            "abbreviatedOid": "e86df57"
+          },
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-05T22:49:15Z",
+          "updatedAt": "2023-06-05T22:49:15Z",
+          "comments": [
+            {
+              "originalPosition": 5,
+              "body": "(It's a separate question whether proof-of-possession is actually required. I'm not sure either way.)",
+              "createdAt": "2023-06-05T22:49:15Z",
+              "updatedAt": "2023-06-05T22:49:15Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOJIBkVc5XPh9z",
+          "commit": {
+            "abbreviatedOid": "e86df57"
+          },
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-05T22:54:16Z",
+          "updatedAt": "2023-06-05T22:54:16Z",
+          "comments": [
+            {
+              "originalPosition": 5,
+              "body": "Oh sure I meant that they would have the unhashed version. I.e. generic is unhashed and both CSRs and certs use unhashed. Hashed only shows up as an implementation detail of building the tree.",
+              "createdAt": "2023-06-05T22:54:16Z",
+              "updatedAt": "2023-06-05T22:54:16Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOJIBkVc5XPjE_",
+          "commit": {
+            "abbreviatedOid": "e86df57"
+          },
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-05T22:56:23Z",
+          "updatedAt": "2023-06-05T22:56:23Z",
+          "comments": [
+            {
+              "originalPosition": 5,
+              "body": "And what the MTC CAs serve.",
+              "createdAt": "2023-06-05T22:56:23Z",
+              "updatedAt": "2023-06-05T22:56:23Z"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": 43,
+      "id": "PR_kwDOJIBkVc5SMAWu",
+      "title": "Miscellaneous",
+      "url": "https://github.com/davidben/merkle-tree-certs/pull/43",
+      "state": "MERGED",
+      "author": "bwesterb",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "1. Add Github issue numbers to TODOs.\r\n2. Correct my initials",
+      "createdAt": "2023-06-05T12:10:19Z",
+      "updatedAt": "2023-06-05T20:50:50Z",
+      "baseRepository": "davidben/merkle-tree-certs",
+      "baseRefName": "main",
+      "baseRefOid": "94daadcb1645ad814ef3dea344a015886bbec655",
+      "headRepository": "bwesterb/merkle-tree-certs",
+      "headRefName": "misc",
+      "headRefOid": "0b9b7549827b766287be621c546178493709d9df",
+      "closedAt": "2023-06-05T17:28:31Z",
+      "mergedAt": "2023-06-05T17:28:31Z",
+      "mergedBy": "davidben",
+      "mergeCommit": {
+        "oid": "25f9893e67de075d9bd65725bd2df8bbf343f08c"
+      },
+      "comments": [],
+      "reviews": [
+        {
+          "id": "PRR_kwDOJIBkVc5XNEr3",
+          "commit": {
+            "abbreviatedOid": "0b9b754"
+          },
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "state": "APPROVED",
+          "body": "",
+          "createdAt": "2023-06-05T17:28:08Z",
+          "updatedAt": "2023-06-05T17:28:08Z",
+          "comments": []
+        }
+      ]
+    },
+    {
+      "number": 44,
+      "id": "PR_kwDOJIBkVc5SMG8N",
+      "title": "Rename window to validity window",
+      "url": "https://github.com/davidben/merkle-tree-certs/pull/44",
+      "state": "OPEN",
+      "author": "bwesterb",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "See #21.\r\n\r\nI like plain *window* a bit better, but this is more explicit.\r\n\r\n- [ ] Squash before merging.",
+      "createdAt": "2023-06-05T12:29:50Z",
+      "updatedAt": "2023-06-05T21:44:22Z",
+      "baseRepository": "davidben/merkle-tree-certs",
+      "baseRefName": "main",
+      "baseRefOid": "25f9893e67de075d9bd65725bd2df8bbf343f08c",
+      "headRepository": "bwesterb/merkle-tree-certs",
+      "headRefName": "issue-21",
+      "headRefOid": "a2ddde4286eb92710c1fea8387b9ea7e90629809",
+      "closedAt": null,
+      "mergedAt": null,
+      "mergedBy": null,
+      "mergeCommit": null,
+      "comments": [],
+      "reviews": [
+        {
+          "id": "PRR_kwDOJIBkVc5XNFKj",
+          "commit": {
+            "abbreviatedOid": "5b8f607"
+          },
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-05T17:29:28Z",
+          "updatedAt": "2023-06-05T17:44:03Z",
+          "comments": [
+            {
+              "originalPosition": 16,
+              "body": "```suggestion\r\n2. The CA collects certificate requests into a batch (see {{parameters}}) and builds the Merkle Tree and computes the tree head (see {{building-tree}}). It then signs the validity window ending at this tree head (see {{signing}}) and publishes (see {{publishing}}) the result.\r\n```",
+              "createdAt": "2023-06-05T17:29:28Z",
+              "updatedAt": "2023-06-05T17:44:03Z"
+            },
+            {
+              "originalPosition": 26,
+              "body": "\"validity window state\" reads funny. Since this part is informal anyway, perhaps just...\r\n\r\n```suggestion\r\n6. In an application protocol such as TLS, the relying party communicates its currently saved validity window to the subscriber.\r\n```\r\n\r\nAnd then 5 above maybe should say:\r\n\r\n> 5. The relying party periodically fetches and saves the latest validity window from the transparency service. This validity window will contain the new tree head.\r\n",
+              "createdAt": "2023-06-05T17:31:19Z",
+              "updatedAt": "2023-06-05T17:44:03Z"
+            },
+            {
+              "originalPosition": 96,
+              "body": "Guessing this was to line up with a block size?",
+              "createdAt": "2023-06-05T17:34:47Z",
+              "updatedAt": "2023-06-05T17:44:03Z"
+            },
+            {
+              "originalPosition": 56,
+              "body": "\"validity window signature\" is a bit hard for me to parse. Perhaps:\r\n\r\n```suggestion\r\n* A signature over the corresponding validity window, described in {{signing}}.\r\n```\r\n\r\nEdit: Oh, but I see \"validity window signature\" shows up in two other places in the document. We'd need to fix those too. I mean, we could just call it the \"batch's signature\", which is true. It is the signature corresponding to the batch, we just incorporate the previous batches into that signature.\r\n\r\nDunno. WDYT?",
+              "createdAt": "2023-06-05T17:36:12Z",
+              "updatedAt": "2023-06-05T17:44:04Z"
+            },
+            {
+              "originalPosition": 177,
+              "body": "I wonder if this could just be more efficiently written as:\r\n\r\n```suggestion\r\n* All tree hashes sent to relying parties MUST be reflected in the mirrored CA state.\r\n```",
+              "createdAt": "2023-06-05T17:40:39Z",
+              "updatedAt": "2023-06-05T17:44:04Z"
+            },
+            {
+              "originalPosition": 182,
+              "body": "This might be a little easier to parse:\r\n\r\n```suggestion\r\nAs discussed in {{authenticity}}, relying parties MUST ensure that any validity windows obtained were asserted by the CA. This SHOULD be done by having the transparency service forward the CA's signature, with the relying party verifying it. However, if the transparency service already maintains a trusted, authenticated channel to the relying parties (e.g. a software or root store update channel), relying parties MAY rely on the transparency service to validate the signature on their behalf, rather than sending it over this channel.\r\n```",
+              "createdAt": "2023-06-05T17:42:32Z",
+              "updatedAt": "2023-06-05T17:44:04Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOJIBkVc5XO6kM",
+          "commit": {
+            "abbreviatedOid": "5b8f607"
+          },
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-05T21:39:35Z",
+          "updatedAt": "2023-06-05T21:39:35Z",
+          "comments": [
+            {
+              "originalPosition": 96,
+              "body": "Yeah, it fits nicely, but would be happy with 16 byte label too.",
+              "createdAt": "2023-06-05T21:39:35Z",
+              "updatedAt": "2023-06-05T21:39:35Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOJIBkVc5XO7o-",
+          "commit": {
+            "abbreviatedOid": "5b8f607"
+          },
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-05T21:41:47Z",
+          "updatedAt": "2023-06-05T21:41:47Z",
+          "comments": [
+            {
+              "originalPosition": 56,
+              "body": "I like window signature better. We're not going to sign other windows, are we? So perhaps just window signature?",
+              "createdAt": "2023-06-05T21:41:47Z",
+              "updatedAt": "2023-06-05T21:41:47Z"
+            }
+          ]
         }
       ]
     }
