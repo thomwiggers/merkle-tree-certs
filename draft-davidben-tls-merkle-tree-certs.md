@@ -437,6 +437,9 @@ A Merkle Tree certification authority is defined by the following values:
 `validity_window_size`:
 : An integer describing the maximum number of unexpired batches which may exist at a time. This value is determined from `lifetime` and `batch_duration` by `floor(lifetime / batch_duration) + 1`.
 
+`storage_window_size`:
+: An integer describing the number of latest issued batches the CA is guaranteed to serve. `validity_window_size` MUST be at least twice `validity_window_size`.
+
 These values are public and known by the relying party and the CA. They may not be changed for the lifetime of the CA. To change these parameters, the entity operating a CA may deploy a second CA and either operate both during a transition, or stop issuing from the previous CA.
 
 [[TODO: The signing key case is interesting. A CA could actually maintain a single stream of Merkle Trees, but then sign everything with multiple keys to support rotation. The CA -> Subscriber -> RP flow does not depend on the signature, only the CA -> Transparency Service -> RP flow. The document is not currently arranged to capture this, but it probably should be. We probably need to decouple the signing half and the Merkle Tree half slightly. #36 ]]
@@ -839,17 +842,20 @@ CAs and transparency services publish state over an HTTP {{!RFC9110}} interface 
 
 CAs and any components of the transparency service that maintain validity window information implement the following interfaces:
 
-* `GET {prefix}/latest` returns the latest batch number.
+* `GET {prefix}/latest` returns `latest_batch`, the number of the latest batch in the "issued" state.
 
 * `GET {prefix}/validity-window/latest` returns the ValidityWindow structure and signature (see {{signing}}) for the latest batch number.
 
 * `GET {prefix}/validity-window/{number}` returns the ValidityWindow structure and signature (see {{signing}}) for batch `number`, if it is in the "issued" state, and a 404 error otherwise.
+
 
 * `GET {prefix}/batch/{number}/info` returns the validity window signature and tree head for batch `number`, if batch `number` is in the "issued" state, and a 404 error otherwise.
 
 CAs and any components of the transparency service that mirror the full assertion list additionally implement the following interface:
 
 * `GET {prefix}/batch/{number}/assertions` returns the assertion list for batch `number`, if `number` is in the issued state, and a 404 error otherwise.
+
+Alternatively, for those endpoints that take a batch number, and in the case the CA would've responded without error, it may respond instead with 410 (gone) if `number` is strictly smaller than `batch_number - storage_window_size`.
 
 If the interface is implemented by a distributed service, with multiple servers, updates may propagate to servers at different times, which will cause temporary inconsistency. This inconsistency can impede this system's transparency goals ({{transparency}}).
 
