@@ -1,6 +1,6 @@
 {
   "magic": "E!vIA5L86J2I",
-  "timestamp": "2023-06-06T01:55:57.357067+00:00",
+  "timestamp": "2023-06-08T01:55:19.390498+00:00",
   "repo": "davidben/merkle-tree-certs",
   "labels": [
     {
@@ -868,6 +868,22 @@
       "updatedAt": "2023-06-05T12:08:24Z",
       "closedAt": null,
       "comments": []
+    },
+    {
+      "number": 45,
+      "id": "I_kwDOJIBkVc5n_bNf",
+      "title": "Is it worthwhile to avoid requiring collision resistance from our hash?",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/45",
+      "state": "OPEN",
+      "author": "bwesterb",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "There has always been a significant gap between (chosen prefix) collision and (second) preimage attacks on hashes. It would be neat if we do not have to assume (chosen prefix) collision resistance of our hash. I'd say it's a nice-to-have, but not a must.\r\n\r\nIncomplete list of changes:\r\n\r\n1. For each batch, the CA generates a 16 byte randomizer `R` which is used as input to `Hash`{`Assertion`,`Node`,`Empty`}. We can either put the randomizer in the proof (in the bikeshed certificate) or pass it along in the signed window.",
+      "createdAt": "2023-06-06T22:04:02Z",
+      "updatedAt": "2023-06-07T08:48:30Z",
+      "closedAt": null,
+      "comments": []
     }
   ],
   "pulls": [
@@ -1325,7 +1341,7 @@
       "labels": [],
       "body": "Move subject_info itself to BikeshedCertificate.\r\n\r\nThis reduces the amount of data that needs to be served by CAs a lot, expecting large post-quantum public keys.\r\n\r\nOne downside is that it complicates the verification a bit: a verifier should not forget to check whether subject_info_hash matches subject_info.\r\n\r\nAlso, to keep verification simpler, we make subject_info less flexible: always expecting a hash in an assertion. We could go for a mix of hashed and unhashed subject info in the assertion, but I do not see an application yet.\r\n\r\nSee #6 ",
       "createdAt": "2023-06-05T11:48:09Z",
-      "updatedAt": "2023-06-05T22:56:23Z",
+      "updatedAt": "2023-06-06T11:30:48Z",
       "baseRepository": "davidben/merkle-tree-certs",
       "baseRefName": "main",
       "baseRefOid": "94daadcb1645ad814ef3dea344a015886bbec655",
@@ -1492,9 +1508,9 @@
           "comments": [
             {
               "originalPosition": 5,
-              "body": "And what the MTC CAs serve.",
+              "body": "> Hashed only shows up as an implementation detail of building the tree.\r\n\r\nAnd it's what the MTC CAs serve. We don't want them to have to serve all (perhaps big) public keys.",
               "createdAt": "2023-06-05T22:56:23Z",
-              "updatedAt": "2023-06-05T22:56:23Z"
+              "updatedAt": "2023-06-06T11:30:48Z"
             }
           ]
         }
