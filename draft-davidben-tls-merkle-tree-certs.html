@@ -11,14 +11,14 @@
 <meta content="
        This document describes Merkle Tree certificates, a new certificate type for use with TLS. A relying party that regularly fetches information from a transparency service can use this certificate type as a size optimization over more conventional mechanisms with post-quantum signatures. Merkle Tree certificates integrate the roles of X.509 and Certificate Transparency, achieving comparable security properties with a smaller message size, at the cost of more limited applicability. 
     " name="description">
-<meta content="xml2rfc 3.17.2" name="generator">
+<meta content="xml2rfc 3.17.3" name="generator">
 <meta content="draft-davidben-tls-merkle-tree-certs-latest" name="ietf.draft">
 <!-- Generator version information:
-  xml2rfc 3.17.2
+  xml2rfc 3.17.3
     Python 3.11.3
     appdirs 1.4.4
     ConfigArgParse 1.5.3
-    google-i18n-address 2.5.2
+    google-i18n-address 3.0.0
     intervaltree 3.1.0
     Jinja2 3.1.2
     lxml 4.9.2
@@ -1052,7 +1052,7 @@ svg :is([fill="white"], [fill^="#fff"]) {
 </tr></thead>
 <tfoot><tr>
 <td class="left">Benjamin, et al.</td>
-<td class="center">Expires 7 December 2023</td>
+<td class="center">Expires 10 December 2023</td>
 <td class="right">[Page]</td>
 </tr></tfoot>
 </table>
@@ -1065,12 +1065,12 @@ svg :is([fill="white"], [fill^="#fff"]) {
 <dd class="internet-draft">draft-davidben-tls-merkle-tree-certs-latest</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
-<time datetime="2023-06-05" class="published">5 June 2023</time>
+<time datetime="2023-06-08" class="published">8 June 2023</time>
     </dd>
 <dt class="label-intended-status">Intended Status:</dt>
 <dd class="intended-status">Experimental</dd>
 <dt class="label-expires">Expires:</dt>
-<dd class="expires"><time datetime="2023-12-07">7 December 2023</time></dd>
+<dd class="expires"><time datetime="2023-12-10">10 December 2023</time></dd>
 <dt class="label-authors">Authors:</dt>
 <dd class="authors">
 <div class="author">
@@ -1128,7 +1128,7 @@ svg :is([fill="white"], [fill^="#fff"]) {
         time. It is inappropriate to use Internet-Drafts as reference
         material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
 <p id="section-boilerplate.1-4">
-        This Internet-Draft will expire on 7 December 2023.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+        This Internet-Draft will expire on 10 December 2023.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="copyright">
@@ -1551,13 +1551,13 @@ enum {
 
 struct {
     ClaimType claim_type;
-    opaque claim_info&lt;0..2^24-1&gt;;
+    opaque claim_info&lt;0..2^16-1&gt;;
 } Claim;
 
 struct {
     SubjectType subject_type;
-    opaque subject_info&lt;0..2^24-1&gt;;
-    Claim claims&lt;0..2^24-1&gt;;
+    opaque subject_info&lt;0..2^16-1&gt;;
+    Claim claims&lt;0..2^16-1&gt;;
 } Assertion;
 </pre><a href="#section-4-4" class="pilcrow">¶</a>
 </div>
@@ -1566,7 +1566,7 @@ struct {
 <pre>
 struct {
     SignatureScheme signature;
-    opaque public_key&lt;1..2^24-1&gt;;
+    opaque public_key&lt;1..2^16-1&gt;;
 } TLSSubjectInfo;
 </pre><a href="#section-4-6" class="pilcrow">¶</a>
 </div>
@@ -1641,7 +1641,7 @@ struct {
 <dt id="section-5.1-2.3">
 <code>issuer_id</code>:</dt>
           <dd style="margin-left: 1.5em" id="section-5.1-2.4">
-            <p id="section-5.1-2.4.1">A short, opaque byte string that identifies the CA.<a href="#section-5.1-2.4.1" class="pilcrow">¶</a></p>
+            <p id="section-5.1-2.4.1">An opaque byte string that identifies the CA. This value should be short and is limited to at most 32 bytes.<a href="#section-5.1-2.4.1" class="pilcrow">¶</a></p>
 </dd>
           <dd class="break"></dd>
 <dt id="section-5.1-2.5">
@@ -1872,7 +1872,7 @@ struct {
 
 struct {
     TrustAnchor trust_anchor;
-    opaque proof_data&lt;0..2^24-1&gt;;
+    opaque proof_data&lt;0..2^16-1&gt;;
 } Proof;
 
 struct {
@@ -2208,7 +2208,7 @@ enum { tls(0), (2^16-1) } SubjectType;
 
 struct {
     SignatureScheme signature;
-    opaque public_key&lt;1..2^24-1&gt;;
+    opaque public_key&lt;1..2^16-1&gt;;
     /* TODO: Should there be an extension list? #38 */
 } TLSSubjectInfo;
 </pre><a href="#section-10.1-2" class="pilcrow">¶</a>
@@ -2243,7 +2243,7 @@ struct {
         </h3>
 <p id="section-10.2-1">[[TODO: Bikeshed is a placeholder name until someone comes up with a better one. #15]]<a href="#section-10.2-1" class="pilcrow">¶</a></p>
 <p id="section-10.2-2">This section defines the <code>Bikeshed</code> TLS certificate type, which may be negotiated with the <code>client_certificate_type</code>, <code>server_certificate_type</code> <span>[<a href="#RFC7250" class="cite xref">RFC7250</a>]</span>, or <code>cert_type</code> <span>[<a href="#RFC6091" class="cite xref">RFC6091</a>]</span> extensions. It can only be negotiated with TLS 1.3 or later. Servers MUST NOT negotiate it in TLS 1.2 or below. If the client receives a ServerHello that negotiates it in TLS 1.2 or below, it MUST abort the connection with an <code>illegal_parameter</code> alert.<a href="#section-10.2-2" class="pilcrow">¶</a></p>
-<p id="section-10.2-3">[[TODO: None of these three extensions is quite right for client certificates because the negotiation isn't symmetric. See discussion in <a href="#cert-type-problems" class="auto internal xref">Section 10.4</a>. We may need to define a third one. #18]]<a href="#section-10.2-3" class="pilcrow">¶</a></p>
+<p id="section-10.2-3">[[TODO: None of these three extensions is quite right for client certificates because the negotiation isn't symmetric. See discussion in <a href="#cert-type-problems" class="auto internal xref">Section 10.4</a>. We may need to define another one. #18]]<a href="#section-10.2-3" class="pilcrow">¶</a></p>
 <p id="section-10.2-4">When negotiated, the Certificate message MUST contain a single CertificateEntry structure.
 CertificateEntry is updated as follows:<a href="#section-10.2-4" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-10.2-5">

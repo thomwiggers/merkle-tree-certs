@@ -5,9 +5,9 @@
 Transport Layer Security                                     D. Benjamin
 Internet-Draft                                                D. O'Brien
 Intended status: Experimental                                 Google LLC
-Expires: 7 December 2023                                B. E. Westerbaan
+Expires: 10 December 2023                               B. E. Westerbaan
                                                               Cloudflare
-                                                             5 June 2023
+                                                             8 June 2023
 
 
                     Merkle Tree Certificates for TLS
@@ -57,7 +57,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 7 December 2023.
+   This Internet-Draft will expire on 10 December 2023.
 
 Copyright Notice
 
@@ -369,13 +369,13 @@ Table of Contents
 
    struct {
        ClaimType claim_type;
-       opaque claim_info<0..2^24-1>;
+       opaque claim_info<0..2^16-1>;
    } Claim;
 
    struct {
        SubjectType subject_type;
-       opaque subject_info<0..2^24-1>;
-       Claim claims<0..2^24-1>;
+       opaque subject_info<0..2^16-1>;
+       Claim claims<0..2^16-1>;
    } Assertion;
 
    An Assertion is roughly analogous to an X.509 TBSCertificate
@@ -388,7 +388,7 @@ Table of Contents
 
    struct {
        SignatureScheme signature;
-       opaque public_key<1..2^24-1>;
+       opaque public_key<1..2^16-1>;
    } TLSSubjectInfo;
 
    This structure represents the public half of a TLS signing key.  The
@@ -483,7 +483,8 @@ Table of Contents
    hash:  A cryptographic hash function.  In this document, the hash
       function is always SHA-256 [SHS], but others may be defined.
 
-   issuer_id:  A short, opaque byte string that identifies the CA.
+   issuer_id:  An opaque byte string that identifies the CA.  This value
+      should be short and is limited to at most 32 bytes.
 
    public_key:  The public half of a signing keypair.  The corresponding
       private key, private_key, is known only to the CA.
@@ -750,7 +751,7 @@ Table of Contents
 
    struct {
        TrustAnchor trust_anchor;
-       opaque proof_data<0..2^24-1>;
+       opaque proof_data<0..2^16-1>;
    } Proof;
 
    struct {
@@ -1282,7 +1283,7 @@ Table of Contents
 
    struct {
        SignatureScheme signature;
-       opaque public_key<1..2^24-1>;
+       opaque public_key<1..2^16-1>;
        /* TODO: Should there be an extension list? #38 */
    } TLSSubjectInfo;
 
@@ -1329,7 +1330,7 @@ Table of Contents
 
    [[TODO: None of these three extensions is quite right for client
    certificates because the negotiation isn't symmetric.  See discussion
-   in Section 10.4.  We may need to define a third one. #18]]
+   in Section 10.4.  We may need to define another one. #18]]
 
    When negotiated, the Certificate message MUST contain a single
    CertificateEntry structure.  CertificateEntry is updated as follows:
