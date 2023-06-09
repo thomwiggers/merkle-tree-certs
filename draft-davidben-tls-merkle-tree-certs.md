@@ -438,7 +438,7 @@ A Merkle Tree certification authority is defined by the following values:
 : An integer describing the maximum number of unexpired batches which may exist at a time. This value is determined from `lifetime` and `batch_duration` by `floor(lifetime / batch_duration) + 1`.
 
 `storage_window_size`:
-: An integer describing the number of latest issued batches the CA is guaranteed to serve. `validity_window_size` MUST be at least twice `validity_window_size`.
+: An integer describing the number of consecutive batches, ending at the latest batch issued, which the CA is guaranteed to serve. `storage_window_size` MUST be at least twice `validity_window_size`.
 
 These values are public and known by the relying party and the CA. They may not be changed for the lifetime of the CA. To change these parameters, the entity operating a CA may deploy a second CA and either operate both during a transition, or stop issuing from the previous CA.
 
