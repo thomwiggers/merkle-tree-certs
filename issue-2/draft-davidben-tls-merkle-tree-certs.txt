@@ -5,9 +5,9 @@
 Transport Layer Security                                     D. Benjamin
 Internet-Draft                                                D. O'Brien
 Intended status: Experimental                                 Google LLC
-Expires: 10 December 2023                               B. E. Westerbaan
+Expires: 11 December 2023                               B. E. Westerbaan
                                                               Cloudflare
-                                                             8 June 2023
+                                                             9 June 2023
 
 
                     Merkle Tree Certificates for TLS
@@ -57,7 +57,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 10 December 2023.
+   This Internet-Draft will expire on 11 December 2023.
 
 Copyright Notice
 
@@ -507,9 +507,10 @@ Table of Contents
       determined from lifetime and batch_duration by floor(lifetime /
       batch_duration) + 1.
 
-   storage_window_size:  An integer describing the number of latest
-      issued batches the CA is guaranteed to serve. validity_window_size
-      MUST be at least twice validity_window_size.
+   storage_window_size:  An integer describing the number of consecutive
+      batches, ending at the latest batch issued, which the CA is
+      guaranteed to serve. storage_window_size MUST be at least twice
+      validity_window_size.
 
    These values are public and known by the relying party and the CA.
    They may not be changed for the lifetime of the CA.  To change these
