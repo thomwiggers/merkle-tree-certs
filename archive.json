@@ -1,6 +1,6 @@
 {
   "magic": "E!vIA5L86J2I",
-  "timestamp": "2023-06-08T01:55:19.390498+00:00",
+  "timestamp": "2023-06-11T02:03:17.865381+00:00",
   "repo": "davidben/merkle-tree-certs",
   "labels": [
     {
@@ -252,9 +252,17 @@
       "labels": [],
       "body": "Right now we have one TLS CertificateType value, `bikeshed`, for all of BikeshedCertificate. This is good for treating ProofType opaquely, but it also negotiates all SubjectTypes at once.\r\n\r\nThe SubjectType for TLS is implicitly `tls`, so that works out. But suppose we needed to define something like. If we build a TLS out of a different key type (e.g. KEMTLS), it'll want a different SubjectType. Or maybe we just decide we need to define `tls2` for some reason.\r\n\r\nSomething like KEMTLS might its own negotiation story anyway, so this may be fine. Something like `tls2` would need its own signaling extension. Perhaps we should just rename it to `bikeshed_tls` which is BikeshedCertificate + SubjectType = tls. And then other SubjectTypes intended for use with TLS just get their own corresponding CertificateType values.",
       "createdAt": "2023-03-19T20:35:49Z",
-      "updatedAt": "2023-03-19T20:36:06Z",
+      "updatedAt": "2023-06-08T13:28:03Z",
       "closedAt": null,
-      "comments": []
+      "comments": [
+        {
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "body": "In the current ~KEMTLS~ [AuthKEM draft](https://www.ietf.org/archive/id/draft-celi-wiggers-tls-authkem-01.html) it's negotiated by assigning `signature_algorithms` codepoints to KEMs. That would just work with MTC: no need to do something special. I'm afraid I do not see an advantage of a separate SubjectType, except for elegance.\r\n\r\n@thomwiggers What's your take?\r\n",
+          "createdAt": "2023-06-08T13:28:03Z",
+          "updatedAt": "2023-06-08T13:28:03Z"
+        }
+      ]
     },
     {
       "number": 8,
@@ -872,16 +880,47 @@
     {
       "number": 45,
       "id": "I_kwDOJIBkVc5n_bNf",
-      "title": "Is it worthwhile to avoid requiring collision resistance from our hash?",
+      "title": "Is it worthwhile to reduce reliance on collision resistance from our hash?",
       "url": "https://github.com/davidben/merkle-tree-certs/issues/45",
       "state": "OPEN",
       "author": "bwesterb",
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [],
-      "body": "There has always been a significant gap between (chosen prefix) collision and (second) preimage attacks on hashes. It would be neat if we do not have to assume (chosen prefix) collision resistance of our hash. I'd say it's a nice-to-have, but not a must.\r\n\r\nIncomplete list of changes:\r\n\r\n1. For each batch, the CA generates a 16 byte randomizer `R` which is used as input to `Hash`{`Assertion`,`Node`,`Empty`}. We can either put the randomizer in the proof (in the bikeshed certificate) or pass it along in the signed window.",
+      "body": "There has always been a significant gap between (chosen prefix) collision and (second) preimage attacks on hashes. It would be neat if we do not have to assume (chosen prefix) collision resistance of our hash to prevent certain classes of attacks. I'd say it's a nice-to-have, but not a must.\r\n\r\nIncomplete list of changes:\r\n\r\n1. For each batch, the CA generates a 16 byte randomizer `R` which is used as input to `Hash`{`Assertion`,`Node`,`Empty`}. We can either put the randomizer in the proof (in the bikeshed certificate) or pass it along in the signed window.",
       "createdAt": "2023-06-06T22:04:02Z",
-      "updatedAt": "2023-06-07T08:48:30Z",
+      "updatedAt": "2023-06-09T12:59:25Z",
+      "closedAt": null,
+      "comments": [
+        {
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "body": "With a CA-provided randomizer, we'd still rely on second preimage resistance for transparency, right? (I.e. we couldn't halve the hash size.) Though I suppose we wouldn't rely on it for authenticity.",
+          "createdAt": "2023-06-08T22:47:45Z",
+          "updatedAt": "2023-06-08T22:47:45Z"
+        },
+        {
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "body": "Yes, you're right: even with the CA-provided randomiser, we would still rely on *collision resistance* to prevent the CA from providing two world views. Indeed, if we'd truncate hashes to 16 bytes, then with 2^64 work, a CA could find two different batches with the same root hash.\r\n\r\nI guess we couldn't get rid of that without significant modifications (see #48). Still I think it might be worthwhile to reduce reliance of collision resistance.",
+          "createdAt": "2023-06-09T12:59:25Z",
+          "updatedAt": "2023-06-09T12:59:25Z"
+        }
+      ]
+    },
+    {
+      "number": 48,
+      "id": "I_kwDOJIBkVc5oTIRj",
+      "title": "Truncated hashes",
+      "url": "https://github.com/davidben/merkle-tree-certs/issues/48",
+      "state": "OPEN",
+      "author": "bwesterb",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "We might be able to get away with 16 byte hashes, by complicating the design significantly. I do not think that this  is worthwhile for the first version, but I'll write the thoughts down in this issue for future reference.\r\n\r\nIf we truncate hashes to 16 bytes, then a CA (even with the CA chosen randomiser #45) can find two different batches with the same root in 2^64 work. This allows the CA to issue certificates for assertions that escape transparency.\r\n\r\nWe can prevent this, if the CA does not control the randomiser, and only learns it after having committed to the batch.\r\n\r\nThis can be done as follows. We have two CAs. The seconds mirrors the first with an offset, so batch `n` in the first is mirrored in batch `n+offset` of the second. The first uses 32 byte hashes, and the second truncates to 16 bytes. The second uses as randomiser, public randomness that's not known before say `n+grace` where `0 < grace \u2264 offset`. For this a post-quantum version of [drand](https://drand.love) could do.\r\n\r\nBefore a TS would trust the truncated mirror, it must:\r\n\r\n1. Fetch the `nth batch from the original before `n+grace`. This is essential, because if the first CA can delay publication of the batch until `n+grace`, it can cheat in collusion with the mirror.\r\n2. Check whether assertions of the mirror matches the original.\r\n3. Compute the root of the mirror with the correct public randomness.\r\n\r\nThe mirror could be run by a TS.\r\n\r\nThis proposal will be much harder to run, as CAs wouldn't be allowed to issue batches late, and monitors need to watch closely for late issuance.",
+      "createdAt": "2023-06-09T12:59:04Z",
+      "updatedAt": "2023-06-09T12:59:04Z",
       "closedAt": null,
       "comments": []
     }
@@ -1253,24 +1292,26 @@
       "id": "PR_kwDOJIBkVc5SCkhp",
       "title": "Shorten some length prefixes",
       "url": "https://github.com/davidben/merkle-tree-certs/pull/29",
-      "state": "OPEN",
+      "state": "MERGED",
       "author": "davidben",
       "authorAssociation": "OWNER",
       "assignees": [],
       "labels": [],
       "body": "Feedback from Ilari Liusvaara on the list. I picked the lengths mostly arbitrarily. This shaves a few bytes, though it does introduce some length limits over X.509 in TLS today. (TLS uses 2^24-1 for the overall certificate structure. Within a certificate, DER gives variable-length lengths.)",
       "createdAt": "2023-06-02T22:33:29Z",
-      "updatedAt": "2023-06-05T21:45:48Z",
+      "updatedAt": "2023-06-08T12:10:06Z",
       "baseRepository": "davidben/merkle-tree-certs",
       "baseRefName": "main",
       "baseRefOid": "25f9893e67de075d9bd65725bd2df8bbf343f08c",
       "headRepository": "davidben/merkle-tree-certs",
       "headRefName": "trim-lengths-2",
       "headRefOid": "89db77c25e7892fcd02dab8725ec6011f27d2354",
-      "closedAt": null,
-      "mergedAt": null,
-      "mergedBy": null,
-      "mergeCommit": null,
+      "closedAt": "2023-06-08T12:09:58Z",
+      "mergedAt": "2023-06-08T12:09:58Z",
+      "mergedBy": "bwesterb",
+      "mergeCommit": {
+        "oid": "8f9143829b806ad32b32c0c2ac9d9d40d111c4ed"
+      },
       "comments": [
         {
           "author": "davidben",
@@ -1341,13 +1382,13 @@
       "labels": [],
       "body": "Move subject_info itself to BikeshedCertificate.\r\n\r\nThis reduces the amount of data that needs to be served by CAs a lot, expecting large post-quantum public keys.\r\n\r\nOne downside is that it complicates the verification a bit: a verifier should not forget to check whether subject_info_hash matches subject_info.\r\n\r\nAlso, to keep verification simpler, we make subject_info less flexible: always expecting a hash in an assertion. We could go for a mix of hashed and unhashed subject info in the assertion, but I do not see an application yet.\r\n\r\nSee #6 ",
       "createdAt": "2023-06-05T11:48:09Z",
-      "updatedAt": "2023-06-06T11:30:48Z",
+      "updatedAt": "2023-06-08T22:53:26Z",
       "baseRepository": "davidben/merkle-tree-certs",
       "baseRefName": "main",
-      "baseRefOid": "94daadcb1645ad814ef3dea344a015886bbec655",
+      "baseRefOid": "8f9143829b806ad32b32c0c2ac9d9d40d111c4ed",
       "headRepository": "bwesterb/merkle-tree-certs",
       "headRefName": "issue-6",
-      "headRefOid": "e86df57f07bf71e896ce78e36a1b668e79263b12",
+      "headRefOid": "ec533973b406dbe1e754cb36315294a77c1982c8",
       "closedAt": null,
       "mergedAt": null,
       "mergedBy": null,
@@ -1513,6 +1554,26 @@
               "updatedAt": "2023-06-06T11:30:48Z"
             }
           ]
+        },
+        {
+          "id": "PRR_kwDOJIBkVc5Xq7h8",
+          "commit": {
+            "abbreviatedOid": "ec53397"
+          },
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-08T22:53:13Z",
+          "updatedAt": "2023-06-08T22:53:14Z",
+          "comments": [
+            {
+              "originalPosition": 5,
+              "body": "Ah yeah that too. I always forget about that one, I think because we never actually defined the darn HTTP interface. :-) Anyway, my point is more that we only need two structures, not three. I think the breakdown goes:\r\n\r\n* Assertion is the one as-is. MerkleTreeAssertionSHA256 is the one with only the hash. You can compute it from Assertion by just hashing the subject.\r\n* `GET {prefix}/batch/{number}/assertions` returns a list of MerkleTreeAssertionSHA256\r\n* HashAssertion and the tree building operation takes MerkleTreeAssertionSHA256 as input\r\n* Everything else (BikeshedCertificate, issuance process, etc.) uses Assertion",
+              "createdAt": "2023-06-08T22:53:13Z",
+              "updatedAt": "2023-06-08T22:53:26Z"
+            }
+          ]
         }
       ]
     },
@@ -1568,15 +1629,15 @@
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [],
-      "body": "See #21.\r\n\r\nI like plain *window* a bit better, but this is more explicit.\r\n\r\n- [ ] Squash before merging.",
+      "body": "See #21.\r\n\r\nI like plain *window* a bit better, but this is more explicit.",
       "createdAt": "2023-06-05T12:29:50Z",
-      "updatedAt": "2023-06-05T21:44:22Z",
+      "updatedAt": "2023-06-09T11:19:24Z",
       "baseRepository": "davidben/merkle-tree-certs",
       "baseRefName": "main",
-      "baseRefOid": "25f9893e67de075d9bd65725bd2df8bbf343f08c",
+      "baseRefOid": "8f9143829b806ad32b32c0c2ac9d9d40d111c4ed",
       "headRepository": "bwesterb/merkle-tree-certs",
       "headRefName": "issue-21",
-      "headRefOid": "a2ddde4286eb92710c1fea8387b9ea7e90629809",
+      "headRefOid": "a8d765c090567445219daad6c9eb1ccbfd867f3c",
       "closedAt": null,
       "mergedAt": null,
       "mergedBy": null,
@@ -1670,6 +1731,232 @@
               "body": "I like window signature better. We're not going to sign other windows, are we? So perhaps just window signature?",
               "createdAt": "2023-06-05T21:41:47Z",
               "updatedAt": "2023-06-05T21:41:47Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOJIBkVc5Xq4io",
+          "commit": {
+            "abbreviatedOid": "5b8f607"
+          },
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-08T22:37:19Z",
+          "updatedAt": "2023-06-08T22:37:20Z",
+          "comments": [
+            {
+              "originalPosition": 56,
+              "body": "(Marking unresolved just because it sounds like we're still deciding the terminology.)\r\n\r\nYeah, \"window signature\" would work too. My thinking around \"batch's signature\" was that just that we currently define this object by saying:\r\n\r\n> For each batch in the \"issued\" state, the CA maintains the following batch state:\r\n>\r\n> * The list of assertions certified in this batch.\r\n>\r\n> * The tree head, a hash computed over this list, described in {{building-tree}}.\r\n>\r\n> * A signature over the corresponding validity window, described in {{signing}}.\r\n\r\nAnd since we're associating it with the batch, it seems plausible to say \"the batch's signature\".\r\n\r\nTo that end, we still have a couple instances of \"validity window signature\" which is now a term without a definition. Whichever we pick, I think we want to be consistent between where it's defined and used.\r\n\r\nBut if we say the batch has a \"window signature\" and then elsewhere we say \"batch's window signature\", that works too. \"validity window signature\" would also work, I just think it's a little wordy and hard to parse. But this is a very soft preference. I don't feel very strongly and would be happy with \"validity window signature\" if that's the cleanest.",
+              "createdAt": "2023-06-08T22:37:19Z",
+              "updatedAt": "2023-06-08T22:37:20Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOJIBkVc5XuSio",
+          "commit": {
+            "abbreviatedOid": "5b8f607"
+          },
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-09T11:18:40Z",
+          "updatedAt": "2023-06-09T11:18:40Z",
+          "comments": [
+            {
+              "originalPosition": 56,
+              "body": "I think the draft has many moving parts, and `validity window signature` to my ear seems easier to understand even if it's wordy, but perhaps we should just see what people that read the draft for the first time prefer. I'm happy with either as well.",
+              "createdAt": "2023-06-09T11:18:40Z",
+              "updatedAt": "2023-06-09T11:19:00Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOJIBkVc5XuSv5",
+          "commit": {
+            "abbreviatedOid": "5b8f607"
+          },
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-09T11:19:23Z",
+          "updatedAt": "2023-06-09T11:19:23Z",
+          "comments": [
+            {
+              "originalPosition": 56,
+              "body": "(We could merge and change later again \u2014 that'll reduce merge conflicts.)",
+              "createdAt": "2023-06-09T11:19:23Z",
+              "updatedAt": "2023-06-09T11:19:24Z"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": 46,
+      "id": "PR_kwDOJIBkVc5ShLKl",
+      "title": "Add storage window ",
+      "url": "https://github.com/davidben/merkle-tree-certs/pull/46",
+      "state": "OPEN",
+      "author": "bwesterb",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "It is tempting to add a new state so that an \"issued\" batch can move\r\ninto, say, \"oblivion\" (\"expired\" would be confusing.) That would however\r\ndistract from the core logic.\r\n\r\nWe still require CAs to maintain a list of all batches and its\r\nassertions, but don't require them to expose them after the storage\r\nwindow. I think that's ok.\r\n\r\nGH https://github.com/davidben/merkle-tree-certs/issues/2\r\n\r\n(Note: forked from #44)",
+      "createdAt": "2023-06-08T13:05:37Z",
+      "updatedAt": "2023-06-09T11:28:23Z",
+      "baseRepository": "davidben/merkle-tree-certs",
+      "baseRefName": "main",
+      "baseRefOid": "8f9143829b806ad32b32c0c2ac9d9d40d111c4ed",
+      "headRepository": "davidben/merkle-tree-certs",
+      "headRefName": "issue-2",
+      "headRefOid": "571d626dcc4225da1714f8c0cdf45fc1be5d3989",
+      "closedAt": null,
+      "mergedAt": null,
+      "mergedBy": null,
+      "mergeCommit": null,
+      "comments": [],
+      "reviews": [
+        {
+          "id": "PRR_kwDOJIBkVc5Xq47k",
+          "commit": {
+            "abbreviatedOid": "e9a713b"
+          },
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-08T22:39:55Z",
+          "updatedAt": "2023-06-08T22:44:30Z",
+          "comments": [
+            {
+              "originalPosition": 42,
+              "body": "```suggestion\r\n: An integer describing the number batches, ending at the latest batch issued, which the CA is guaranteed to serve. `storage_window_size` MUST be at least twice `validity_window_size`.\r\n```",
+              "createdAt": "2023-06-08T22:39:55Z",
+              "updatedAt": "2023-06-08T22:44:30Z"
+            },
+            {
+              "originalPosition": 42,
+              "body": "Does a storage window apply to the mirrors too? If not, I don't think it's possible to set up a new mirror for a CA that already exists.\r\n\r\nTo that end, I think we'd need to update the procedure for mirrors to account for this, as the current procedure assumes the CA is obligated to go back to batch number zero.",
+              "createdAt": "2023-06-08T22:44:26Z",
+              "updatedAt": "2023-06-08T22:44:30Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOJIBkVc5XuUVR",
+          "commit": {
+            "abbreviatedOid": "e9a713b"
+          },
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-09T11:24:31Z",
+          "updatedAt": "2023-06-09T11:24:31Z",
+          "comments": [
+            {
+              "originalPosition": 42,
+              "body": "\ud83d\udc4d ",
+              "createdAt": "2023-06-09T11:24:31Z",
+              "updatedAt": "2023-06-09T11:24:31Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOJIBkVc5XuV7-",
+          "commit": {
+            "abbreviatedOid": "e9a713b"
+          },
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-09T11:28:03Z",
+          "updatedAt": "2023-06-09T11:28:03Z",
+          "comments": [
+            {
+              "originalPosition": 42,
+              "body": "Storage window only applies to CA as it's written now.\r\n\r\nYou mean apply to TS? For now we could say a TS is allowed to return 410 as it desires? (And have browsers or another document stipulate stricter requirements for the different use cases of TS?)",
+              "createdAt": "2023-06-09T11:28:03Z",
+              "updatedAt": "2023-06-09T11:28:23Z"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": 47,
+      "id": "PR_kwDOJIBkVc5ShOti",
+      "title": "Clarify that unparsable signing inputs are still misissuance",
+      "url": "https://github.com/davidben/merkle-tree-certs/pull/47",
+      "state": "OPEN",
+      "author": "bwesterb",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "GH #5",
+      "createdAt": "2023-06-08T13:15:29Z",
+      "updatedAt": "2023-06-09T11:15:32Z",
+      "baseRepository": "davidben/merkle-tree-certs",
+      "baseRefName": "main",
+      "baseRefOid": "8f9143829b806ad32b32c0c2ac9d9d40d111c4ed",
+      "headRepository": "bwesterb/merkle-tree-certs",
+      "headRefName": "issue-5",
+      "headRefOid": "9734ffb21a9cf12b55459bb85f1c48d0380c8d80",
+      "closedAt": null,
+      "mergedAt": null,
+      "mergedBy": null,
+      "mergeCommit": null,
+      "comments": [],
+      "reviews": [
+        {
+          "id": "PRR_kwDOJIBkVc5Xq0aS",
+          "commit": {
+            "abbreviatedOid": "d58800d"
+          },
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-08T22:13:12Z",
+          "updatedAt": "2023-06-08T22:26:19Z",
+          "comments": [
+            {
+              "originalPosition": 4,
+              "body": "```suggestion\r\nFurthermore, any valid signature of a CA's `public_key` that is not of the form as defined in {{signing}}, or an extension of this protocol, MUST be considered a misissuance.\r\n```",
+              "createdAt": "2023-06-08T22:13:12Z",
+              "updatedAt": "2023-06-08T22:26:19Z"
+            },
+            {
+              "originalPosition": 4,
+              "body": "Extremely nitpicky nitpick: \"MUST be considered misissuance\" feels like kind of a weird directive. (What does it mean if I direct you to \"consider\" something as something else?) I think something like \"CA's MUST NOT do x\" and \"this is considered a misissuance\" reads a bit better. (Then we're just saying that this document considers such behavior a misissuance, as more a definition, than a directive.)\r\n\r\nTo that end, the previous paragraph says \"To avoid this, {{parameters}} forbids the reuse of Merkle Tree CA private keys in another protocol\", which I think refers to:\r\n\r\n> To prevent cross-protocol attacks, the key used in a Merkle Tree CA MUST be unique to that Merkle Tree CA. It MUST NOT be used in another Merkle Tree CA, or for another protocol, such as X.509 certificates.\r\n\r\n{{signing}} also says:\r\n\r\n> If the CA's private key signs an input that can be interpreted as a LabeledWindow structure, the CA is considered to have [...]\r\n\r\nWDYT if, instead, we appended to the first paragraph something like:\r\n\r\n> To avoid this, {{parameters}} forbids the reuse of Merkle Tree CA private keys in another protocol. A CA MUST NOT generate signatures with its private key, except as defined in {{signing}}, or an extension of this protocol. Any valid signature of a CA's `public_key` that does not meet these requirements is considered a misissuance.\r\n\r\n(Hmm, is it \"misissuance\" if my private key gets stolen by an attacker and then the attacker generates a bad certificate, or do we use a different word for that? They're functionally equivalent, but I don't know the preferred terminology. @devonobrien )",
+              "createdAt": "2023-06-08T22:24:02Z",
+              "updatedAt": "2023-06-08T22:26:52Z"
+            }
+          ]
+        },
+        {
+          "id": "PRR_kwDOJIBkVc5XuRj4",
+          "commit": {
+            "abbreviatedOid": "d58800d"
+          },
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2023-06-09T11:15:21Z",
+          "updatedAt": "2023-06-09T11:15:21Z",
+          "comments": [
+            {
+              "originalPosition": 4,
+              "body": "sgtm, amended PR.",
+              "createdAt": "2023-06-09T11:15:21Z",
+              "updatedAt": "2023-06-09T11:15:32Z"
             }
           ]
         }
