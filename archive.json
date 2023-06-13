@@ -1,6 +1,6 @@
 {
   "magic": "E!vIA5L86J2I",
-  "timestamp": "2023-06-11T02:03:17.865381+00:00",
+  "timestamp": "2023-06-13T01:47:59.042174+00:00",
   "repo": "davidben/merkle-tree-certs",
   "labels": [
     {
@@ -252,7 +252,7 @@
       "labels": [],
       "body": "Right now we have one TLS CertificateType value, `bikeshed`, for all of BikeshedCertificate. This is good for treating ProofType opaquely, but it also negotiates all SubjectTypes at once.\r\n\r\nThe SubjectType for TLS is implicitly `tls`, so that works out. But suppose we needed to define something like. If we build a TLS out of a different key type (e.g. KEMTLS), it'll want a different SubjectType. Or maybe we just decide we need to define `tls2` for some reason.\r\n\r\nSomething like KEMTLS might its own negotiation story anyway, so this may be fine. Something like `tls2` would need its own signaling extension. Perhaps we should just rename it to `bikeshed_tls` which is BikeshedCertificate + SubjectType = tls. And then other SubjectTypes intended for use with TLS just get their own corresponding CertificateType values.",
       "createdAt": "2023-03-19T20:35:49Z",
-      "updatedAt": "2023-06-08T13:28:03Z",
+      "updatedAt": "2023-06-12T13:17:02Z",
       "closedAt": null,
       "comments": [
         {
@@ -261,6 +261,20 @@
           "body": "In the current ~KEMTLS~ [AuthKEM draft](https://www.ietf.org/archive/id/draft-celi-wiggers-tls-authkem-01.html) it's negotiated by assigning `signature_algorithms` codepoints to KEMs. That would just work with MTC: no need to do something special. I'm afraid I do not see an advantage of a separate SubjectType, except for elegance.\r\n\r\n@thomwiggers What's your take?\r\n",
           "createdAt": "2023-06-08T13:28:03Z",
           "updatedAt": "2023-06-08T13:28:03Z"
+        },
+        {
+          "author": "thomwiggers",
+          "authorAssociation": "NONE",
+          "body": "I'm not exactly read into the MTC draft yet; but I can maybe help clarify why AuthKEM reuses the `signature_algorithms` codepoint: \r\n\r\n1. In our view, `signature_algorithms` covers authentication algorithms and controls switching between them; AuthKEM introduces new authentication algorithms.\r\n2. Reusing it was easier in my own implementations.\r\n3. Reusing it avoids having to decide and specify preference between an AuthKEM extension and \"legacy\" `signature_algorithms`\r\n\r\nFor these reasons, if AuthKEM is standardized, I expect this to stay the same.\r\n\r\nI'm not exactly sure what the SubjectType and CertificateType impose in terms of security or negotiation expectations?\r\n\r\n",
+          "createdAt": "2023-06-12T12:52:27Z",
+          "updatedAt": "2023-06-12T12:52:27Z"
+        },
+        {
+          "author": "thomwiggers",
+          "authorAssociation": "NONE",
+          "body": "I read a bit further and these are my very, very rough thoughts. I may be missing the mark here, but I'm still sharing them because if wrong I still hope that the way I misread things can be instructive \ud83d\ude04  \r\n\r\nSkimming the draft, I am getting the impression that it does indeed seem that the CertifiateType and SubjectType are currently very related, and it seems unlikely that the same certificate may be used for different purposes (which I guess is already sort of the case with certificates because they specify EKUs?). The suggestion in the text to just add new certificate types to TLS if that becomes necessary (i.e., `bikeshed_tls2`) seems very reasonable. \r\n\r\nIn terms of implementing that in TLS, I would expect that this might also be easier; I imagine that a new `SubjectType` requires branching of the certificate handling anyway, so branching on `CertificateType` might be just as easy?",
+          "createdAt": "2023-06-12T13:17:02Z",
+          "updatedAt": "2023-06-12T13:17:02Z"
         }
       ]
     },
@@ -451,9 +465,31 @@
       "labels": [],
       "body": "Probably under deployment considerations. The shortlived certificate aspect assumes your clock is right. Although we also get to play on easy: we're only considering up-to-date RPs and those RPs (presumably) got a clock update in the most recent update.\r\n\r\nThe clock could have gone wrong since though, so deployments would need to ponder this.",
       "createdAt": "2023-03-24T20:03:02Z",
-      "updatedAt": "2023-03-24T20:03:02Z",
+      "updatedAt": "2023-06-12T14:37:52Z",
       "closedAt": null,
-      "comments": []
+      "comments": [
+        {
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "body": "Perhaps too radical of a proposal, but what is the argument against the following: an RP will accept a certificate in the latest window it has regardless of the clock.\r\n\r\nThis will make negotiation also easier. Because what if the RP has its clock skewed to the future and thinks it has a very outdated window: say only two batches of that window are valid. If it sends that it has this window to a subscriber, and the subscriber has a certificate in one of the earlier batches, it will send that one without considering the clock skew of the RP.",
+          "createdAt": "2023-06-12T12:04:25Z",
+          "updatedAt": "2023-06-12T12:04:25Z"
+        },
+        {
+          "author": "davidben",
+          "authorAssociation": "OWNER",
+          "body": "The RP may not necessarily be able to contact the update server all the time. The latest window being far in the past could be clock skew, or it could just be stale. I don't think the RP should accept the batch in that case, otherwise expiry on these certificates don't work. And if expiry doesn't work, everything that follows from expiry (scope of revocation, monitoring, etc) breaks down.",
+          "createdAt": "2023-06-12T14:22:42Z",
+          "updatedAt": "2023-06-12T14:22:42Z"
+        },
+        {
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "body": "Then shouldn't the RP negotiate by saying \"I'll accept these CAs with batches between n and m\", where m-n < validity_window_size? Then the only thing clock skew can do, is making n too large.",
+          "createdAt": "2023-06-12T14:37:51Z",
+          "updatedAt": "2023-06-12T14:37:51Z"
+        }
+      ]
     },
     {
       "number": 18,
@@ -857,9 +893,17 @@
       "labels": [],
       "body": "> [[TODO: Is it worth defining an API for Merkle Tree CAs to publish a revocation list? That would allow automatically populating CRLite and CRLSets. Maybe that's a separate document.]] ",
       "createdAt": "2023-06-05T12:08:06Z",
-      "updatedAt": "2023-06-05T12:08:06Z",
+      "updatedAt": "2023-06-12T13:45:20Z",
       "closedAt": null,
-      "comments": []
+      "comments": [
+        {
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "body": "It's tempting to include revocations in the batches, by having either (Abridged)Assertions or Revocations as leafs. So we'd have, say:\r\n\r\n```\r\nenum {\r\n    assertion(0),\r\n    revocation(1),\r\n    (2^8-1)\r\n} LeafType;\r\n\r\nstruct {\r\n    LeafType leaf_type;\r\n    opaque leaf<0..2^24-1>;\r\n} Leaf;\r\n\r\nstruct {\r\n    uint32 batch_number;\r\n    uint64 index;\r\n} Revocation;\r\n```\r\n\r\nThere are downsides:\r\n\r\n- Revocation has the same delay as issuance. With `batch_duration`s of an hour this isn't too bad.\r\n- We need to address revoking a revocation. I'd say revoking a revocation is a no-op.\r\n- The revocations will take space in the Merkle Tree: proof sizes for a batch with a huge number of revocations will increase. (This could be offset by using a list of `Revocation`s as a leaf.)\r\n-  It'll complicate the presentation of MTC: we can't say \"we build a tree on top of assertions\" anymore.\r\n\r\nAn alternative would be to have parallel batches/tree/signed windows where leafs are revocations instead of assertions. That only has the revocation delay as downside.\r\n\r\nFinally, a bespoke HTTP interface could be created that would allow for quicker revocation. That'll force us to use a clock, which we don't really need so far (see #17.)\r\n\r\nOther questions are:\r\n\r\n1. Do we need to include extra information, such as revocation reason? I'd say the full list of reasons is excessive. Perhaps just a \"key compromised\" trit (yes, no, unknown), would be ok.",
+          "createdAt": "2023-06-12T13:43:35Z",
+          "updatedAt": "2023-06-12T13:45:20Z"
+        }
+      ]
     },
     {
       "number": 42,
@@ -1356,13 +1400,13 @@
       "labels": [],
       "body": "Fixes #32\r\n\r\nAlso adds change log.",
       "createdAt": "2023-06-05T10:37:29Z",
-      "updatedAt": "2023-06-05T10:37:29Z",
+      "updatedAt": "2023-06-12T10:30:10Z",
       "baseRepository": "davidben/merkle-tree-certs",
       "baseRefName": "main",
-      "baseRefOid": "94daadcb1645ad814ef3dea344a015886bbec655",
+      "baseRefOid": "8f9143829b806ad32b32c0c2ac9d9d40d111c4ed",
       "headRepository": "bwesterb/merkle-tree-certs",
       "headRefName": "issue-32",
-      "headRefOid": "6e56087e8d594e9804c59606bbd883ac187ef115",
+      "headRefOid": "964607819cb617479647141586b463f987a52874",
       "closedAt": null,
       "mergedAt": null,
       "mergedBy": null,
@@ -1375,25 +1419,33 @@
       "id": "PR_kwDOJIBkVc5SL3o_",
       "title": "Only include hash of subject_info in Assertion",
       "url": "https://github.com/davidben/merkle-tree-certs/pull/34",
-      "state": "OPEN",
+      "state": "CLOSED",
       "author": "bwesterb",
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [],
       "body": "Move subject_info itself to BikeshedCertificate.\r\n\r\nThis reduces the amount of data that needs to be served by CAs a lot, expecting large post-quantum public keys.\r\n\r\nOne downside is that it complicates the verification a bit: a verifier should not forget to check whether subject_info_hash matches subject_info.\r\n\r\nAlso, to keep verification simpler, we make subject_info less flexible: always expecting a hash in an assertion. We could go for a mix of hashed and unhashed subject info in the assertion, but I do not see an application yet.\r\n\r\nSee #6 ",
       "createdAt": "2023-06-05T11:48:09Z",
-      "updatedAt": "2023-06-08T22:53:26Z",
+      "updatedAt": "2023-06-12T11:10:33Z",
       "baseRepository": "davidben/merkle-tree-certs",
       "baseRefName": "main",
       "baseRefOid": "8f9143829b806ad32b32c0c2ac9d9d40d111c4ed",
       "headRepository": "bwesterb/merkle-tree-certs",
       "headRefName": "issue-6",
       "headRefOid": "ec533973b406dbe1e754cb36315294a77c1982c8",
-      "closedAt": null,
+      "closedAt": "2023-06-12T11:10:33Z",
       "mergedAt": null,
       "mergedBy": null,
       "mergeCommit": null,
-      "comments": [],
+      "comments": [
+        {
+          "author": "bwesterb",
+          "authorAssociation": "COLLABORATOR",
+          "body": "Superseded by #49 ",
+          "createdAt": "2023-06-12T11:10:33Z",
+          "updatedAt": "2023-06-12T11:10:33Z"
+        }
+      ],
       "reviews": [
         {
           "id": "PRR_kwDOJIBkVc5XMJDk",
@@ -1961,6 +2013,84 @@
           ]
         }
       ]
+    },
+    {
+      "number": 49,
+      "id": "PR_kwDOJIBkVc5Swmms",
+      "title": "Split Assertion into Assertion and AbridgedAssertion",
+      "url": "https://github.com/davidben/merkle-tree-certs/pull/49",
+      "state": "OPEN",
+      "author": "bwesterb",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "The latter is used in the Merkle Tree and HTTP interface. It replaces\r\n`subject_info` by a hash, to save space by not serving large\r\npost-quantum public keys. The origin Assertion is used everywhere\r\nelse, including BikeshedCertificate.\r\n\r\nSupersedes #34 \r\nCloses #6 \r\n(Also includes #33)",
+      "createdAt": "2023-06-12T11:08:47Z",
+      "updatedAt": "2023-06-12T11:10:00Z",
+      "baseRepository": "davidben/merkle-tree-certs",
+      "baseRefName": "main",
+      "baseRefOid": "8f9143829b806ad32b32c0c2ac9d9d40d111c4ed",
+      "headRepository": "bwesterb/merkle-tree-certs",
+      "headRefName": "issue-6-2",
+      "headRefOid": "62c1a138a7911e29f012995328668993d31e95ec",
+      "closedAt": null,
+      "mergedAt": null,
+      "mergedBy": null,
+      "mergeCommit": null,
+      "comments": [],
+      "reviews": []
+    },
+    {
+      "number": 50,
+      "id": "PR_kwDOJIBkVc5SxUoK",
+      "title": "Elaborate on CA public key and signature format",
+      "url": "https://github.com/davidben/merkle-tree-certs/pull/50",
+      "state": "OPEN",
+      "author": "bwesterb",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "Closes #27",
+      "createdAt": "2023-06-12T12:55:38Z",
+      "updatedAt": "2023-06-12T12:55:39Z",
+      "baseRepository": "davidben/merkle-tree-certs",
+      "baseRefName": "main",
+      "baseRefOid": "8f9143829b806ad32b32c0c2ac9d9d40d111c4ed",
+      "headRepository": "bwesterb/merkle-tree-certs",
+      "headRefName": "issue-27",
+      "headRefOid": "670328678eb7131fca663b885a757b2e12518174",
+      "closedAt": null,
+      "mergedAt": null,
+      "mergedBy": null,
+      "mergeCommit": null,
+      "comments": [],
+      "reviews": []
+    },
+    {
+      "number": 51,
+      "id": "PR_kwDOJIBkVc5SybMI",
+      "title": "Add a preliminary section in dealing with bitflips",
+      "url": "https://github.com/davidben/merkle-tree-certs/pull/51",
+      "state": "OPEN",
+      "author": "bwesterb",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "See #26",
+      "createdAt": "2023-06-12T15:36:38Z",
+      "updatedAt": "2023-06-12T15:36:39Z",
+      "baseRepository": "davidben/merkle-tree-certs",
+      "baseRefName": "main",
+      "baseRefOid": "8f9143829b806ad32b32c0c2ac9d9d40d111c4ed",
+      "headRepository": "bwesterb/merkle-tree-certs",
+      "headRefName": "issue-26",
+      "headRefOid": "448bc9dc248e3d0272d0a2b7e607926a1e66b39e",
+      "closedAt": null,
+      "mergedAt": null,
+      "mergedBy": null,
+      "mergeCommit": null,
+      "comments": [],
+      "reviews": []
     }
   ]
 }
